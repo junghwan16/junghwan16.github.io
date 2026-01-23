@@ -1,11 +1,17 @@
 ---
 layout: post
-title: "OpenRTB 완벽 가이드: BidRequest, BidResponse, 그리고 광고 타입"
+title: "OpenRTB 연동할 때 알아야 할 것들"
 date: 2026-01-24 20:00:00 +0900
 categories: [adtech, openrtb]
 ---
 
-OpenRTB(Open Real-Time Bidding)는 프로그래매틱 광고에서 SSP와 DSP 간의 통신을 위한 IAB 표준 프로토콜입니다. 이 글에서는 BidRequest, BidResponse의 구조와 Banner, Native, Video(VAST) 광고 타입을 실제 예시와 함께 정리합니다.
+OpenRTB(Open Real-Time Bidding)는 프로그래매틱 광고에서 SSP와 DSP 간의 통신을 위한 IAB 표준 프로토콜입니다. 처음 연동하면 BidRequest/BidResponse 구조, 광고 타입별 차이점이 헷갈리기 쉽습니다. 실제 예시와 함께 정리합니다.
+
+## 먼저 생각해볼 것
+
+> - SSP 연동인가, DSP 연동인가?
+> - 어떤 광고 타입(Banner, Native, Video)을 지원해야 하는가?
+> - 상대방이 지원하는 OpenRTB 버전은 무엇인가?
 
 ## OpenRTB 기본 흐름
 
@@ -68,6 +74,12 @@ SSP가 DSP에게 "이런 광고 지면이 있어요"라고 알려주는 요청�
 | `site` / `app` | 웹사이트 또는 앱 정보 |
 | `device` | 디바이스 정보 (UA, IP, 위치 등) |
 | `user` | 사용자 정보 |
+
+### 자가 체크
+
+> - `imp[].bidfloor` 값을 확인하고 있는가? 이 가격 이하로 입찰하면 낙찰되지 않는다
+> - `site`와 `app` 중 어느 필드가 들어오는지 확인했는가? (웹 vs 앱)
+> - `device.geo` 정보로 지역 타겟팅을 해야 하는가?
 
 ---
 
@@ -145,6 +157,12 @@ https://dsp.com/win?price=2.11&bid=bid-123
 | `${AUCTION_BID_ID}` | 입찰 ID |
 | `${AUCTION_IMP_ID}` | Impression ID |
 
+### 자가 체크
+
+> - `impid`가 BidRequest의 `imp.id`와 정확히 매칭되는가?
+> - `nurl`에서 `${AUCTION_PRICE}` 매크로를 올바르게 파싱하고 있는가?
+> - `adomain`에 실제 광고주 도메인이 들어가 있는가? (블랙리스트 필터링에 사용됨)
+
 ---
 
 ## 광고 타입별 상세
@@ -188,6 +206,11 @@ https://dsp.com/win?price=2.11&bid=bid-123
 </a>
 <img src="https://dsp.com/impression?id=123" width="1" height="1">
 ```
+
+### 자가 체크
+
+> - Banner 응답의 `w`, `h`가 BidRequest의 `format`에 포함된 크기인가?
+> - Impression 트래킹용 1x1 픽셀을 adm에 포함했는가?
 
 ---
 
@@ -284,6 +307,12 @@ https://dsp.com/win?price=2.11&bid=bid-123
   }
 }
 ```
+
+### 자가 체크
+
+> - BidRequest의 `required: 1`인 asset을 모두 응답에 포함했는가?
+> - 응답의 asset id가 요청의 asset id와 매칭되는가?
+> - `data.type` 값이 요청에서 요구한 타입과 일치하는가?
 
 ---
 
@@ -429,6 +458,13 @@ Player → SSP VAST (Wrapper)
               ↓
          최종 VAST (InLine) ← 실제 비디오
 ```
+
+### 자가 체크
+
+> - BidRequest의 `protocols`에 포함된 VAST 버전으로 응답하고 있는가?
+> - `minduration`과 `maxduration` 범위 내의 광고를 응답하고 있는가?
+> - TrackingEvents(start, complete 등)를 모두 구현했는가?
+> - Wrapper 체이닝이 너무 깊어지면 타임아웃이 발생할 수 있다. 몇 단계까지 허용하는가?
 
 ---
 

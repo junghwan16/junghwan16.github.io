@@ -1,40 +1,43 @@
 ---
 layout: post
-title: "Redis와 캐시 전략 완벽 가이드"
+title: "캐시가 필요할 때, Redis로 어떻게 구현할까"
 date: 2026-01-23 19:00:00 +0900
 categories: [backend, redis]
 ---
 
-백엔드 시스템에서 성능 최적화를 이야기할 때 캐시는 빠지지 않는 주제입니다. 이 글에서는 캐시의 기본 개념부터 Redis를 활용한 다양한 캐싱 전략, 그리고 실무에서 마주치는 문제들과 해결 방법까지 정리해보겠습니다.
+"DB 쿼리가 너무 느려요", "같은 데이터를 계속 조회해요" — 이런 상황에서 캐시 도입을 고민하게 됩니다. 이 글에서는 캐시의 기본 개념부터 Redis를 활용한 캐싱 전략, 그리고 실무에서 자주 발생하는 문제들을 다룹니다.
 
-## 1. 캐시란?
+## 먼저 생각해볼 것
 
-캐시(Cache)는 데이터를 미리 복사해두는 임시 저장소입니다. 원본 데이터 저장소보다 빠른 접근 속도를 제공하여 전체 시스템의 성능을 향상시킵니다.
+캐시를 도입하기 전에 스스로 물어보세요:
 
-### 캐시 도입이 효과적인 경우
+> - 현재 병목이 정말 DB 조회인가? (프로파일링 해봤는가?)
+> - 같은 데이터를 얼마나 자주 조회하는가?
+> - 데이터가 얼마나 자주 변경되는가?
+> - 캐시가 틀린 데이터를 보여줘도 괜찮은가? (얼마나 오래?)
+
+이 질문들에 명확히 답할 수 없다면, 캐시보다 쿼리 최적화나 인덱스 추가가 먼저일 수 있습니다.
+
+## 캐시가 효과적인 경우
 
 | 상황 | 설명 |
 |------|------|
-| 느린 응답 속도 | DB 조회에 시간이 오래 걸리는 경우 |
-| 반복적인 연산 | 동일한 결과를 반복 계산해야 하는 경우 |
-| 불변 데이터 | 자주 변경되지 않는 데이터 |
-| 빈번한 요청 | 특정 데이터에 대한 요청이 매우 많은 경우 |
+| 느린 응답 속도 | DB 조회에 수백 ms 이상 걸림 |
+| 반복적인 연산 | 동일한 결과를 반복 계산 |
+| 읽기 비율이 높음 | 쓰기보다 읽기가 10배 이상 |
+| 약간의 지연 허용 | 실시간 정확성이 필수가 아님 |
 
-## 2. 왜 Redis인가?
+## 왜 Redis인가?
 
-Redis가 캐시 솔루션으로 널리 사용되는 이유:
+- **Key-Value 구조**: 직관적인 저장과 조회
+- **인메모리**: 디스크 DB보다 100배 이상 빠름
+- **다양한 자료구조**: String, List, Hash, Set, Sorted Set
+- **TTL 지원**: 자동 만료로 메모리 관리
+- **고가용성**: Sentinel, Cluster로 장애 대응
 
-- **단순한 Key-Value 구조**: 직관적인 데이터 저장과 조회
-- **인메모리 저장**: 디스크 기반 DB보다 월등히 빠른 속도
-- **다양한 자료구조**: String, List, Hash, Set, Sorted Set 등 지원
-- **고가용성**: Sentinel, Cluster를 통한 자동 장애 복구
-- **쉬운 확장**: 클러스터 기반 수평 확장
+## 읽기 전략: Cache-Aside
 
-## 3. 캐싱 전략
-
-### 3.1 읽기 전략: Cache-Aside (Look-Aside)
-
-가장 널리 사용되는 패턴입니다. 애플리케이션이 캐시를 "옆에 두고" 필요할 때만 사용합니다.
+가장 널리 사용되는 패턴입니다.
 
 ```
 요청 → 캐시 확인 → Hit? → 반환
@@ -43,11 +46,6 @@ Redis가 캐시 솔루션으로 널리 사용되는 이유:
 ```
 
 ```python
-import redis
-import json
-
-cache = redis.Redis()
-
 def get_user(user_id: str) -> dict:
     cache_key = f"user:{user_id}"
 
@@ -57,7 +55,7 @@ def get_user(user_id: str) -> dict:
         return json.loads(cached)
 
     # 2. 캐시 미스 - DB 조회
-    user = get_user_from_db(user_id)
+    user = db.get_user(user_id)
 
     # 3. 캐시에 저장 (TTL 60초)
     if user:
@@ -66,20 +64,22 @@ def get_user(user_id: str) -> dict:
     return user
 ```
 
-**장점**: 캐시 장애 시에도 DB 조회로 서비스 유지 가능
+### 자가 체크
 
-**캐시 워밍(Cache Warming)**: 시스템 시작 시 자주 사용될 데이터를 미리 캐시에 채워두는 작업
+> - 캐시 미스가 발생하면 어떤 일이 일어나는가?
+> - TTL을 60초로 설정했는데, 이 시간 동안 원본 데이터가 바뀌면?
+> - 캐시 서버가 죽으면 서비스는 어떻게 되는가?
 
-### 3.2 쓰기 전략
+## 쓰기 전략
 
-#### Write-Through (동시 쓰기)
+### Write-Through (동시 쓰기)
 
-DB와 캐시에 동시에 업데이트합니다.
+DB와 캐시를 동시에 업데이트합니다.
 
 ```python
 def update_user(user_id: str, data: dict) -> dict:
     # 1. DB 저장
-    updated = update_user_in_db(user_id, data)
+    updated = db.update_user(user_id, data)
 
     # 2. 캐시에도 저장
     if updated:
@@ -88,30 +88,31 @@ def update_user(user_id: str, data: dict) -> dict:
     return updated
 ```
 
-- **장점**: 캐시가 항상 최신 데이터 유지
-- **단점**: 쓰기 지연 시간 증가
+**장점**: 캐시가 항상 최신
+**단점**: 쓰기 지연 증가
 
-#### Cache Invalidation (캐시 무효화)
+### Cache Invalidation (캐시 무효화)
 
-DB 업데이트 시 캐시 데이터를 삭제합니다.
+DB 업데이트 시 캐시를 삭제합니다.
 
 ```python
 def update_user(user_id: str, data: dict) -> dict:
-    # 1. DB 업데이트
-    updated = update_user_in_db(user_id, data)
-
-    # 2. 캐시 삭제
-    cache.delete(f"user:{user_id}")
-
+    updated = db.update_user(user_id, data)
+    cache.delete(f"user:{user_id}")  # 삭제만!
     return updated
 ```
 
-- **장점**: 쓰기가 빠름 (삭제는 저장보다 가벼움)
-- **단점**: 업데이트 후 첫 읽기 시 캐시 미스 발생
+**장점**: 쓰기가 빠름
+**단점**: 다음 읽기에서 캐시 미스 발생
 
-#### Write-Behind (Write-Back)
+### 자가 체크
 
-쓰기가 매우 빈번한 서비스에 적합합니다. 캐시에만 먼저 쓰고, 비동기로 DB에 반영합니다.
+> - 당신의 서비스는 읽기가 많은가, 쓰기가 많은가?
+> - 사용자가 데이터를 수정하고 바로 조회하면 최신 데이터가 보여야 하는가?
+
+## Write-Behind (쓰기 지연)
+
+쓰기가 매우 빈번한 경우에 적합합니다.
 
 ```python
 def update_likes(video_id: str) -> int:
@@ -120,41 +121,44 @@ def update_likes(video_id: str) -> int:
     # 1. 캐시에 즉시 반영
     current = cache.incr(cache_key)
 
-    # 2. 특정 조건에서 DB 업데이트 예약
+    # 2. 100번마다 DB에 배치 저장
     if current % 100 == 0:
         schedule_db_update(video_id, current)
 
     return current
 ```
 
-- **장점**: 쓰기가 매우 빠름, DB 부하 감소
-- **단점**: 캐시 장애 시 데이터 유실 위험
+**장점**: 쓰기가 매우 빠름, DB 부하 감소
+**단점**: 캐시 장애 시 데이터 유실 위험
 
-## 4. 캐시 운영 시 고려사항
+### 자가 체크
 
-### 4.1 메모리 관리
+> - 이 데이터가 유실되면 비즈니스에 어떤 영향이 있는가?
+> - "좋아요 수"와 "결제 금액" 중 어느 쪽에 이 패턴을 쓸 수 있는가?
 
-**TTL (Time To Live)**: 데이터 만료 시간 설정
+## 메모리 관리
+
+### TTL 설정
 
 ```bash
 SET user:123 "data" EX 60  # 60초 후 만료
 ```
 
-**maxmemory-policy**: 메모리 한도 도달 시 삭제 정책
+### maxmemory-policy
+
+메모리 한도 도달 시 삭제 정책:
 
 | 정책 | 설명 |
 |------|------|
-| `noeviction` | 추가 저장 차단, 에러 반환 (기본값) |
-| `allkeys-lru` | LRU 방식으로 삭제 **(캐시 용도로 권장)** |
-| `volatile-ttl` | TTL이 설정된 키 중 수명이 짧은 것부터 삭제 |
+| `noeviction` | 추가 저장 차단 (기본값) |
+| `allkeys-lru` | LRU 방식으로 삭제 **(캐시 용도 권장)** |
+| `volatile-ttl` | TTL이 짧은 키부터 삭제 |
 
-### 4.2 Cache Stampede (Thundering Herd)
+## Cache Stampede 문제
 
-인기 있는 캐시 데이터가 만료되는 순간, 수많은 요청이 동시에 DB로 몰리는 현상입니다.
+인기 있는 캐시가 만료되는 순간, 수많은 요청이 동시에 DB로 몰리는 현상입니다.
 
-#### 해결책 1: Mutex Lock
-
-한 번에 하나의 요청만 DB에 접근하도록 락을 겁니다.
+### 해결책 1: Mutex Lock
 
 ```python
 def get_data_with_lock(key: str):
@@ -163,89 +167,74 @@ def get_data_with_lock(key: str):
         return data
 
     lock_key = f"{key}:lock"
-
-    # SETNX로 락 획득 시도
-    if cache.set(lock_key, "1", nx=True, ex=10):
+    if cache.set(lock_key, "1", nx=True, ex=10):  # 락 획득
         try:
-            data = get_from_db(key)
+            data = db.get(key)
             cache.set(key, data, ex=300)
             return data
         finally:
             cache.delete(lock_key)
     else:
-        # 락 획득 실패 - 대기 후 재시도
-        time.sleep(0.1)
+        time.sleep(0.1)  # 락 획득 실패 - 대기
         return get_data_with_lock(key)
 ```
 
-#### 해결책 2: 만료 시간 분산 (Jitter)
-
-TTL에 무작위 시간을 더해 만료 시점을 분산시킵니다.
+### 해결책 2: TTL에 Jitter 추가
 
 ```python
-import random
-
 base_ttl = 300
 jitter = random.randint(0, 60)
 cache.set(key, data, ex=base_ttl + jitter)
 ```
 
-#### 해결책 3: 백그라운드 갱신
+만료 시점을 분산시켜 동시 만료를 방지합니다.
 
-만료 전에 미리 데이터를 갱신합니다. TTL 60초인 데이터가 55초 시점에 요청되면, 기존 데이터를 반환하면서 비동기로 갱신 작업을 시작합니다.
+### 자가 체크
 
-#### 해결책 4: 확률적 조기 재계산 (PER)
+> - 당신의 캐시 중 "인기 있는" 키는 무엇인가?
+> - 그 키가 만료되면 몇 개의 요청이 동시에 DB를 칠 수 있는가?
 
-남은 TTL을 확인하고 확률적으로 미리 갱신할지 결정합니다. 만료에 가까울수록 갱신 확률이 높아집니다.
+## Cache Penetration 문제
 
-```python
-import math
-import random
+존재하지 않는 데이터를 반복 요청해서 DB에 불필요한 부하를 주는 상황입니다.
 
-BETA = 1.0
-
-def should_recompute(fetch_time: float, ttl: int) -> bool:
-    elapsed = time.time() - fetch_time
-    prob = elapsed * -BETA * math.log(random.random()) / ttl
-    return prob >= 1.0
-```
-
-### 4.3 Cache Penetration
-
-존재하지 않는 데이터에 대한 반복 요청으로 DB에 불필요한 부하가 발생하는 문제입니다.
-
-#### 해결책: Null 값 캐싱
+### 해결책: Null 값 캐싱
 
 ```python
 def get_data(key: str):
     data = cache.get(key)
-
     if data is not None:
         return None if data == b"NULL" else json.loads(data)
 
-    db_data = get_from_db(key)
-
+    db_data = db.get(key)
     if db_data:
         cache.set(key, json.dumps(db_data), ex=300)
     else:
-        # 없는 데이터도 짧은 TTL로 캐싱
-        cache.set(key, "NULL", ex=5)
+        cache.set(key, "NULL", ex=5)  # 없는 것도 짧게 캐싱
 
     return db_data
 ```
 
-## 5. 정리
+## 전략 선택 가이드
 
-| 전략 | 사용 시점 |
+| 상황 | 추천 전략 |
 |------|----------|
-| Cache-Aside | 범용적인 읽기 캐싱 |
-| Write-Through | 데이터 일관성이 중요할 때 |
-| Cache Invalidation | 쓰기 성능이 중요할 때 |
-| Write-Behind | 쓰기가 매우 빈번할 때 |
+| 범용적인 읽기 캐싱 | Cache-Aside |
+| 데이터 일관성이 중요 | Write-Through |
+| 쓰기 성능이 중요 | Cache Invalidation |
+| 쓰기가 매우 빈번 | Write-Behind |
 
-| 문제 | 해결책 |
-|------|--------|
-| Cache Stampede | Mutex Lock, TTL Jitter, PER |
-| Cache Penetration | Null 값 캐싱 |
+## 마무리 체크리스트
 
-캐시는 적절히 사용하면 시스템 성능을 크게 향상시키지만, 데이터 일관성과 장애 상황을 항상 고려해야 합니다. 서비스 특성에 맞는 전략을 선택하는 것이 중요합니다.
+도입 전:
+- [ ] 캐시 없이 최적화할 수 있는 부분은 없는가?
+- [ ] 캐시 장애 시 서비스가 어떻게 동작해야 하는가?
+
+설계 시:
+- [ ] TTL은 얼마로 설정할 것인가?
+- [ ] 데이터 변경 시 캐시를 어떻게 처리할 것인가?
+- [ ] 메모리 한도와 eviction 정책은?
+
+운영 시:
+- [ ] 캐시 히트율을 모니터링하고 있는가?
+- [ ] Stampede 방어책이 있는가?

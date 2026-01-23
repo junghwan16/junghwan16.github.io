@@ -1,11 +1,17 @@
 ---
 layout: post
-title: "Redis TTL과 키 만료 완벽 가이드"
+title: "Redis 키 만료, 제대로 이해하고 쓰기"
 date: 2026-01-24 10:00:00 +0900
 categories: [backend, redis]
 ---
 
-Redis의 모든 키는 만료 시간(expiration)을 설정할 수 있습니다. 만료 시간이 지나면 키는 자동으로 삭제됩니다. TTL 관련 명령어들을 정리합니다.
+Redis의 모든 키는 만료 시간(expiration)을 설정할 수 있습니다. 만료 시간이 지나면 키는 자동으로 삭제됩니다. 캐시, 세션, 임시 토큰 등 대부분의 Redis 사용 사례에서 TTL은 필수입니다.
+
+## 먼저 생각해볼 것
+
+> - 이 데이터는 영구 저장이 필요한가, 임시 데이터인가?
+> - TTL 없이 저장하면 메모리가 무한정 늘어나지 않는가?
+> - 만료 시점은 상대 시간(60초 후)이 좋은가, 절대 시간(자정)이 좋은가?
 
 ## TTL과 PTTL - 남은 시간 조회
 
@@ -26,6 +32,11 @@ OK
 - 양수: 남은 만료 시간(초)
 - `-1`: 키는 존재하지만 만료 시간이 설정되지 않음
 - `-2`: 키가 존재하지 않음
+
+### 자가 체크
+
+> - TTL이 -1인 키가 많다면 메모리 누수의 징후일 수 있다. 의도한 것인가?
+> - TTL이 -2를 반환했을 때 코드가 올바르게 처리하는가?
 
 ```python
 def test_ttl_returns_minus_one_when_no_expiration(r: redis.Redis):
@@ -86,6 +97,11 @@ def test_key_deleted_after_expiration(r: redis.Redis):
     time.sleep(0.15)  # 150ms 대기
     assert r.exists("key") == 0
 ```
+
+### 자가 체크
+
+> - 세션 TTL로 30분을 쓴다면, 사용자가 29분에 활동했을 때 TTL을 갱신하는가?
+> - 캐시 TTL이 너무 짧으면 DB 부하가 늘고, 너무 길면 stale 데이터가 보인다. 적절한가?
 
 ## EXPIREAT과 PEXPIREAT - 절대 시간으로 만료 설정
 
@@ -227,6 +243,11 @@ OK
 
 1. **Passive expiration**: 클라이언트가 만료된 키에 접근할 때 삭제
 2. **Active expiration**: Redis가 주기적으로(초당 10회) 만료된 키를 샘플링하여 삭제
+
+### 자가 체크
+
+> - 만료된 키가 즉시 삭제되지 않을 수 있다는 점을 고려했는가?
+> - `KEYS *` 명령으로 만료된 키가 보이더라도 GET하면 nil이 반환될 수 있다
 
 ### EXPIRE 조건 옵션 (Redis 7.0+)
 
