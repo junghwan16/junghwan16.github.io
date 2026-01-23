@@ -27,10 +27,9 @@ url: "https://junghwan16.github.io"
 github_username: junghwan16
 
 # Build settings
-theme: minima
-minima:
-  skin: dark
+remote_theme: pages-themes/hacker@v0.2.0
 plugins:
+  - jekyll-remote-theme
   - jekyll-feed
 
 # Exclude from processing.
