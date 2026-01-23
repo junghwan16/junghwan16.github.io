@@ -4,7 +4,11 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nSwitch to hacker theme\n\n- Use remote_theme for GitHub Pages compatibility\n- Update index with post listing\n- Simplify about page\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh run list:*)",
+      "Bash(for f in _posts/*.md)",
+      "Bash(do head -5 \"$f\")",
+      "Bash(done)"
     ]
   }
 }

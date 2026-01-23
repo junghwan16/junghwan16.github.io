@@ -18,9 +18,9 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: oioi
+title: 조정환의 일지
 email: ""
-description: "백엔드 개발 기록"
+description: "🌲"
 
 baseurl: ""
 url: "https://junghwan16.github.io"
