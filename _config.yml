@@ -28,6 +28,8 @@ github_username: junghwan16
 
 # Build settings
 theme: minima
+minima:
+  skin: dark
 plugins:
   - jekyll-feed
 
