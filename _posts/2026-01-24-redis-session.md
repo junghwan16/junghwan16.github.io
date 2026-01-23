@@ -1,11 +1,18 @@
 ---
 layout: post
-title: "Redis를 세션 스토어로 사용하기"
+title: "세션 스토어로 Redis를 쓸 때 고려할 것들"
 date: 2026-01-24 15:00:00 +0900
 categories: [backend, redis]
 ---
 
-Redis를 세션 스토어로 사용할 때의 설계 포인트, 보안 옵션, TTL 전략, 운영 팁을 정리했습니다.
+서버를 무상태로 만들고 싶다면 세션을 Redis로 옮기는 것이 일반적인 선택입니다. 하지만 보안과 TTL 전략을 놓치면 문제가 됩니다.
+
+## 먼저 생각해볼 것
+
+> - 서버가 여러 대인가? 세션 공유가 필요한가?
+> - 세션에 어떤 정보를 저장할 것인가? (최소 정보만 권장)
+> - 세션 만료 정책은? (고정 TTL vs 슬라이딩 TTL)
+> - Redis 장애 시 로그인 세션은 어떻게 되는가?
 
 ## 왜 Redis 세션인가
 
@@ -140,3 +147,10 @@ PSUBSCRIBE "__keyevent@0__:expired"
 - `used_memory`, `connected_clients`
 - `expired_keys`, `evicted_keys`
 - 세션 미스율 → TTL 정책 조정에 활용
+
+## 자가 체크
+
+> - 쿠키에 `Secure`, `HttpOnly`, `SameSite` 옵션을 모두 설정했는가?
+> - 로그인 시 새 세션 ID를 발급하고 이전 세션을 삭제하는가?
+> - 세션에 비밀번호나 민감 정보를 저장하고 있지 않은가?
+> - `SET` 후 `EXPIRE` 따로 호출하는 대신 `SET ... EX`를 쓰고 있는가?

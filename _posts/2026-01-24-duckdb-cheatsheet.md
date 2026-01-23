@@ -1,11 +1,11 @@
 ---
 layout: post
-title: "DuckDB 치트시트"
+title: "DuckDB로 로컬에서 빠르게 데이터 분석하기"
 date: 2026-01-24 14:00:00 +0900
 categories: [data, sql]
 ---
 
-DuckDB CLI 및 SQL 문법 치트시트입니다.
+Parquet, CSV 파일을 로컬에서 SQL로 바로 조회하고 싶을 때 DuckDB가 유용합니다. CLI와 주요 문법을 정리합니다.
 
 ## CLI 기본
 
@@ -175,3 +175,10 @@ UNPIVOT tbl ON (col1, col2) INTO NAME 'category' VALUE 'value';
 ```sql
 SELECT DISTINCT ON (col) * FROM tbl ORDER BY col, ts DESC;
 ```
+
+## 자가 체크
+
+> - Parquet 파일을 직접 쿼리할 수 있다는 걸 알고 있는가?
+> - 와일드카드(`*.parquet`)로 여러 파일을 한 번에 읽을 수 있다
+> - 대용량 데이터는 `USING SAMPLE`로 먼저 살펴보는 게 좋다
+> - 결과를 Parquet/CSV로 내보내려면 `COPY ... TO`를 사용

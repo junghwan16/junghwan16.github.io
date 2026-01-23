@@ -1,11 +1,17 @@
 ---
 layout: post
-title: "Go context와 HTTP 요청 종료"
+title: "Go에서 클라이언트가 끊으면 요청을 취소하는 법"
 date: 2026-01-24 13:00:00 +0900
 categories: [backend, go]
 ---
 
-Go의 HTTP 서버에서 "요청 종료"란, 클라이언트와의 연결이 끊기거나 요청 처리가 완료되어 해당 요청의 context가 취소(cancel)되는 것을 의미합니다.
+클라이언트가 응답을 기다리지 않는다면, 서버도 작업을 계속할 이유가 없습니다. Go의 context를 이용하면 이를 자동으로 처리할 수 있습니다.
+
+## 먼저 생각해볼 것
+
+> - 핸들러에서 DB/Redis 작업에 context를 전달하고 있는가?
+> - 클라이언트가 끊어도 백엔드 작업이 계속 실행되고 있지 않은가?
+> - 백그라운드 작업은 요청 context와 분리되어 있는가?
 
 ## http.Request.Context()의 동작 방식
 
@@ -122,3 +128,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 | 백그라운드 작업 | `context.Background()` 사용 |
 
 context 전파를 통해 클라이언트가 떠난 후 불필요한 DB/Redis 작업을 자동으로 취소할 수 있습니다. 모든 I/O 작업에 context를 전달하는 것을 습관화하세요.
+
+## 자가 체크
+
+> - DB 쿼리, Redis 호출, 외부 API 호출에 모두 context를 전달하고 있는가?
+> - `context.Background()`를 무분별하게 쓰고 있지 않은가?
+> - 요청과 무관한 백그라운드 작업은 별도 context를 사용하는가?
+> - timeout을 설정한 context를 적절히 활용하고 있는가?
