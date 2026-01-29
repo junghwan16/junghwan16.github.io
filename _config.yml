@@ -1,85 +1,17 @@
-# Site Settings
-title: 조정환의 일지
-subtitle: Backend Engineer
-name: 조정환
-description: "Backend Engineering Blog"
+# Site
+title: 조정환
+description: "Backend Engineer"
 url: "https://junghwan16.github.io"
 baseurl: ""
-repository: junghwan16/junghwan16.github.io
 
-# Theme
-remote_theme: "mmistakes/minimal-mistakes@4.26.2"
-minimal_mistakes_skin: "default"  # air, aqua, contrast, dark, dirt, neon, mint, plum, sunrise
-
-# Build settings
-plugins:
-  - jekyll-feed
-  - jekyll-sitemap
-  - jekyll-paginate
-  - jekyll-include-cache
-
-# Pagination
-paginate: 10
-paginate_path: /page:num/
-
-# Reading
+# Build
 future: true
-show_excerpts: true
+markdown: kramdown
+highlighter: rouge
 
-# Include
-include:
-  - _pages
-
-# Defaults
-defaults:
-  - scope:
-      path: ""
-      type: posts
-    values:
-      layout: single
-      author_profile: false
-      read_time: true
-      comments: false
-      share: false
-      related: true
-      toc: true
-      toc_sticky: true
-  - scope:
-      path: ""
-      type: pages
-    values:
-      layout: single
-      author_profile: false
-
-# Author
-author:
-  name: "조정환"
-  bio: "Backend Engineer"
-  location: "Seoul, Korea"
-  links:
-    - label: "GitHub"
-      icon: "fab fa-fw fa-github"
-      url: "https://github.com/junghwan16"
-
-# Footer
-footer:
-  links:
-    - label: "GitHub"
-      icon: "fab fa-fw fa-github"
-      url: "https://github.com/junghwan16"
-
-# Archives
-category_archive:
-  type: liquid
-  path: /categories/
-tag_archive:
-  type: liquid
-  path: /tags/
-
-# Sass
-sass:
-  sass_dir: _sass
-  style: compressed
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
 
 # Exclude
 exclude:

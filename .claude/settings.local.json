@@ -8,7 +8,15 @@
       "Bash(gh run list:*)",
       "Bash(for f in _posts/*.md)",
       "Bash(do head -5 \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(brew list:*)",
+      "Bash(brew install:*)",
+      "Bash(zsh -c 'source ~/.zshrc 2>/dev/null && echo \"\"=== eza preview ===\"\" && ls -la ~/Developer 2>/dev/null || ls -la ~ | head -15')",
+      "Bash(brew uninstall:*)",
+      "WebSearch",
+      "Bash(grep:*)",
+      "WebFetch(domain:www.confluent.io)",
+      "WebFetch(domain:aws.amazon.com)"
     ]
   }
 }
