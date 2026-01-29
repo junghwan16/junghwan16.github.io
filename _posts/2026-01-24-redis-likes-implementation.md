@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "좋아요 기능, 어떻게 구현해야 빠를까"
 date: 2026-01-24 11:00:00 +0900
 categories: [backend, redis]

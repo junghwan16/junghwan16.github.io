@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Redis 키 만료, 제대로 이해하고 쓰기"
 date: 2026-01-24 10:00:00 +0900
 categories: [backend, redis]

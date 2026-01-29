@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "테이블이 너무 커졌을 때, 파티셔닝을 고려해야 할까"
 date: 2026-01-23 20:00:00 +0900
 categories: [database, mysql]

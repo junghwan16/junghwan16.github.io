@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "캐시가 필요할 때, Redis로 어떻게 구현할까"
 date: 2026-01-23 19:00:00 +0900
 categories: [backend, redis]
