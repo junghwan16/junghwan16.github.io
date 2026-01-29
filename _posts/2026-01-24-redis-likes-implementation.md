@@ -230,6 +230,41 @@ Redis 업데이트 성공, RDB 실패 시나리오를 위한:
 
 결론적으로, 대부분의 서비스는 **RDB와 Redis를 조합한 하이브리드 아키텍처**로 빠른 응답 속도와 데이터 신뢰성을 모두 확보합니다.
 
+---
+
+## 카운터 샤딩: 샤드 개수 선택
+
+| 동시 요청/초 | 권장 샤드 수 |
+|-------------|-------------|
+| 100 이하 | 샤딩 불필요 |
+| 100~1,000 | 10개 |
+| 1,000~10,000 | 100개 |
+| 10,000+ | 1,000개 또는 Redis 전환 |
+
+**계산 기준**: 단일 레코드 락 처리량 ~100 TPS. 샤드 N개면 N × 100 TPS 가능.
+
+---
+
+## Redis 장애 시 폴백
+
+```python
+def get_likes_count(comment_id: int) -> int:
+    try:
+        count = redis.get(f"comment:{comment_id}:likes_count")
+        if count is not None:
+            return int(count)
+    except RedisError:
+        pass  # Redis 장애 시 RDB 폴백
+
+    # RDB에서 조회
+    count = db.query("SELECT like_count FROM comment WHERE id = ?", comment_id)
+    return count or 0
+```
+
+Redis 장애가 좋아요 조회를 막으면 안 된다. 폴백으로 RDB 조회.
+
+---
+
 ## 자가 체크
 
 > - 현재 좋아요 UPDATE 쿼리에서 락 경합이 발생하고 있는가?

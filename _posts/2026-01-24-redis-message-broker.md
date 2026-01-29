@@ -134,6 +134,53 @@ XTRIM notifications MAXLEN ~ 100000
 
 Redis는 가벼운 메시징에 적합하지만, 대규모 파이프라인이나 정확한 파티셔닝이 필요하면 전문 브로커를 고려하세요.
 
+---
+
+## Consumer Lag 모니터링 (Streams)
+
+```redis
+XINFO GROUPS notifications
+```
+
+```
+1) "name" → "senders"
+   "consumers" → 3
+   "pending" → 150       # 처리 중인 메시지
+   "last-delivered-id" → "1700000000000-0"
+   "lag" → 500           # 밀린 메시지 수
+```
+
+`lag`이 증가하면 소비자가 처리 속도를 따라가지 못하는 것.
+
+**알림 기준**: lag > 1000이면 소비자 추가 검토.
+
+---
+
+## 재시도 전략 (Exponential Backoff)
+
+```python
+import time
+
+def process_with_retry(message, max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            process(message)
+            return True
+        except Exception:
+            wait = min(2 ** attempt, 60)  # 1, 2, 4, 8, 16, 32, 60초
+            time.sleep(wait)
+    return False  # 최대 재시도 초과 → DLQ로
+```
+
+Streams에서 실패한 메시지는 `XPENDING`에 남아있다가 `XAUTOCLAIM`으로 다른 소비자가 가져갈 수 있다.
+
+```redis
+# 5분 이상 처리 안 된 메시지를 worker-2가 가져감
+XAUTOCLAIM notifications senders worker-2 300000 0-0 COUNT 10
+```
+
+---
+
 ## 자가 체크
 
 > - 메시지 유실이 허용되는가? 허용되면 Pub/Sub, 아니면 Streams

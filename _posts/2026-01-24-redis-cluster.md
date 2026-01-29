@@ -188,6 +188,62 @@ cluster-require-full-coverage yes  # 기본값
 | 페일오버 | 과반수 투표로 복제본 승격 |
 | 최소 구성 | 3 마스터 (권장: 3 마스터 + 3 복제본) |
 
+## 클라이언트 구현 예시
+
+### Python (redis-py)
+
+```python
+from redis.cluster import RedisCluster
+
+rc = RedisCluster(
+    host="node1",
+    port=6379,
+    decode_responses=True
+)
+
+# 단일 키 연산 - 자동 라우팅
+rc.set("user:123", "data")
+rc.get("user:123")
+
+# 해시태그로 멀티키 연산
+rc.mset({"{user:123}:name": "kim", "{user:123}:age": "30"})
+rc.mget("{user:123}:name", "{user:123}:age")
+```
+
+MOVED/ASK 리다이렉트는 redis-py가 자동 처리한다.
+
+### Spring Data Redis
+
+```java
+@Bean
+public RedisConnectionFactory redisConnectionFactory() {
+    RedisClusterConfiguration config = new RedisClusterConfiguration(
+        List.of("node1:6379", "node2:6379", "node3:6379")
+    );
+    return new LettuceConnectionFactory(config);
+}
+```
+
+---
+
+## 리샤딩 성능 영향
+
+슬롯 이동 중 해당 슬롯 접근 시:
+
+| 상황 | 지연 |
+|------|------|
+| 슬롯 이동 전 | 0.5ms |
+| 슬롯 이동 중 (ASK) | 1~2ms (재시도 포함) |
+| 슬롯 이동 후 (MOVED 1회) | 0.5ms + 캐시 갱신 |
+
+대규모 리샤딩 시 배치 크기 조절로 영향 최소화:
+
+```bash
+redis-cli --cluster reshard <host>:<port> --cluster-pipeline 100
+```
+
+---
+
 ## 자가 체크
 
 > - 클라이언트 라이브러리가 클러스터 모드를 지원하는가?

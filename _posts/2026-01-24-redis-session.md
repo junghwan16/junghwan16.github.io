@@ -148,6 +148,45 @@ PSUBSCRIBE "__keyevent@0__:expired"
 - `expired_keys`, `evicted_keys`
 - 세션 미스율 → TTL 정책 조정에 활용
 
+---
+
+## 분산 환경에서의 일관성
+
+세션 데이터는 **결과적 일관성(Eventual Consistency)**으로 충분하다.
+
+```
+[요청 1] → Master → 쓰기 성공
+[요청 2] → Replica → 아직 복제 안 됨 → 이전 데이터
+```
+
+복제 지연(~ms)이 문제가 되는 경우:
+- `WAIT` 명령으로 복제 완료 대기 (성능 저하)
+- 로그인/로그아웃은 마스터에서만 처리
+
+대부분의 세션 조회는 복제본 읽기로도 문제없다.
+
+---
+
+## 세션 탈취 방어
+
+| 공격 | 방어 |
+|------|------|
+| 세션 고정(Fixation) | 로그인 시 새 sid 발급, 기존 삭제 |
+| 세션 하이재킹 | Secure + HttpOnly + SameSite 쿠키 |
+| 무차별 대입 | sid 128bit 이상 랜덤 (UUID4) |
+| IP 변경 감지 | 세션에 IP 저장, 변경 시 재인증 요구 |
+
+```python
+def validate_session(sid: str, request_ip: str) -> bool:
+    session = json.loads(redis.get(f"session:{sid}"))
+    if session.get("ip") != request_ip:
+        redis.delete(f"session:{sid}")
+        return False
+    return True
+```
+
+---
+
 ## 자가 체크
 
 > - 쿠키에 `Secure`, `HttpOnly`, `SameSite` 옵션을 모두 설정했는가?

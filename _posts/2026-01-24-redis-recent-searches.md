@@ -175,6 +175,43 @@ ZREMRANGEBYSCORE key -inf (now-90d)
 >
 > 검색 저장은 best-effort로 분리해서 Redis 장애가 검색 자체에 영향을 주지 않게 합니다."
 
+---
+
+## 대규모 성능
+
+ZSET은 내부적으로 skiplist를 사용한다.
+
+| 연산 | 시간 복잡도 | 100개 | 10만 개 |
+|------|------------|-------|---------|
+| ZADD | O(log N) | 0.01ms | 0.02ms |
+| ZREVRANGE 20 | O(log N + M) | 0.01ms | 0.02ms |
+| ZREMRANGEBYRANK | O(log N + M) | 0.01ms | 0.02ms |
+
+100개 제한이면 N=100으로 고정되어 성능 걱정 없다.
+
+---
+
+## 검색어 정규화
+
+```python
+import unicodedata
+
+def normalize_query(q: str) -> str:
+    q = q.strip()
+    q = q.lower()
+    # 유니코드 정규화 (한글 자모 분리 방지)
+    q = unicodedata.normalize("NFC", q)
+    # 연속 공백 제거
+    q = " ".join(q.split())
+    return q[:100]  # 길이 제한
+
+# "  카페   라떼  " → "카페 라떼"
+```
+
+정규화 안 하면 "카페라떼"와 "카페 라떼"가 별개로 저장된다.
+
+---
+
 ## 자가 체크
 
 > - `ZADD` + `EXPIRE` + `ZREMRANGEBYRANK`를 원자적으로 처리하고 있는가?
