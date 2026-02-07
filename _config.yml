@@ -13,6 +13,13 @@ kramdown:
   input: GFM
   syntax_highlighter: rouge
 
+# Giscus comments
+giscus:
+  repo: "junghwan16/junghwan16.github.io"
+  repo_id: "R_kgDOQ_xZJQ"
+  category: "Announcements"
+  category_id: "DIC_kwDOQ_xZJc4C2AmU"
+
 # Exclude
 exclude:
   - Gemfile
