@@ -411,3 +411,13 @@ Kafka는 `linger.ms=5`, `batch.size=16KB` 기본값 기준. 배치를 줄이면 
 > - 순서 보장이 필요한 경우, 실패 시 해당 key의 후속 메시지를 block하고 있는가?
 > - offset commit 시점이 자동인가 수동인가? 의도한 것인가?
 
+---
+
+## 참고자료
+
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [RabbitMQ Documentation](https://www.rabbitmq.com/docs)
+- [AMQP 0-9-1 Protocol](https://www.rabbitmq.com/tutorials/amqp-concepts)
+- [Confluent - Kafka vs RabbitMQ](https://www.confluent.io/blog/kafka-vs-rabbitmq/)
+- [KIP-500 (KRaft)](https://cwiki.apache.org/confluence/display/KAFKA/KIP-500)
+

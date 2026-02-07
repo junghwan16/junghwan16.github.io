@@ -7,9 +7,9 @@ categories: [backend, network]
 
 서버 개발을 하다보면 클라이언트의 IP를 알아야할 때가 있다.
 
-간단하게 생각하면 L4 레이어의 TCP 연결 자체가 IP 기반이기 때문에 쉽게 알 수 있을 것이라 생각이 들 수 있지만, 실제 네트워크 환경은 여러 홉을 거치기 때문에 우리가 원하는 진짜 유저의 IP를 얻는건 생각보다 쉽지 않을수도 있을 거란 생각이 들어야 합니다.
+간단하게 생각하면 L4 레이어의 TCP 연결 자체가 IP 기반이기 때문에 쉽게 알 수 있을 것 같지만, 실제 네트워크 환경은 여러 홉을 거치기 때문에 진짜 유저의 IP를 얻는 건 생각보다 쉽지 않을 수 있다는 점을 인식해야 한다.
 
-두 가지 레이어에서 생각을 분리해봐야합니다:
+두 가지 레이어에서 생각을 분리해봐야 한다:
 
 - TCP 관점: "지금 내 서버 소켓에 연결한 상대(바로 앞 홉)의 IP"
 - HTTP 관점: "이 HTTP 요청을 '처음' 만든 원래 사용자(또는 원발신자)의 IP"
@@ -55,12 +55,12 @@ SSP가 유저 IP를 잘못 수집하면 → DSP에 잘못된 IP가 전달되고 
 
 > 패킷이 라우터/NAT를 거칠 때 L2/L3/L4 헤더가 각각 어떻게 바뀌는지는 [[패킷이 홉을 거칠 때 헤더는 어떻게 바뀌는가]] 참고.
 
-TCP 연결이 성립되면 서버는 커널로부터 "상대방" 주소를 받습니다.
+TCP 연결이 성립되면 서버는 커널로부터 "상대방" 주소를 받는다.
 
-- 이 값은 L4(전송계층) 레벨에서 신뢰할 수 있는 사실입니다. TCP 3-way handshake가 완료되어야 데이터를 주고받을 수 있으므로, 공격자가 IP를 스푸핑하면 SYN-ACK를 받을 수 없어 연결 자체가 성립되지 않습니다. (단, SYN Cookies 사용 시 ISN 예측 공격 등 예외적 시나리오가 존재하긴 합니다)
-- 하지만 여기서의 "상대방"은 원래 사용자가 아니라 바로 앞에 있는 장비일 수 있습니다.
+- 이 값은 L4(전송계층) 레벨에서 신뢰할 수 있는 사실이다. TCP 3-way handshake가 완료되어야 데이터를 주고받을 수 있으므로, 공격자가 IP를 스푸핑하면 SYN-ACK를 받을 수 없어 연결 자체가 성립되지 않는다. (단, SYN Cookies 사용 시 ISN 예측 공격 등 예외적 시나리오가 존재하긴 한다)
+- 하지만 여기서의 "상대방"은 원래 사용자가 아니라 바로 앞에 있는 장비일 수 있다.
 
-유저와 서버가 직접 연결되면 peer IP = 유저 IP라서 간단하지만, **현실에서 이런 직접 연결은 거의 없습니다.** 프로덕션 환경에는 항상 무언가가 중간에 끼어 있습니다.
+유저와 서버가 직접 연결되면 peer IP = 유저 IP라서 간단하지만, **현실에서 이런 직접 연결은 거의 없다.** 프로덕션 환경에는 항상 무언가가 중간에 끼어 있다.
 
 ### L7 프록시(ALB, Nginx 등)를 거치면?
 
@@ -82,25 +82,25 @@ AWS ALB (10.0.1.100)              ← ALB가 TCP 연결 ①을 종료(terminate)
 2. ALB는 이 연결을 받아서 **끊고**, 백엔드 서버에 **새로운** TCP 연결을 맺음 (연결 ②)
 3. 서버 입장에서는 연결 ②만 보이므로, peer IP는 ALB의 IP인 `10.0.1.100`
 
-이것이 L7 프록시(ALB, Nginx, HAProxy 등)의 기본 동작입니다. 연결을 "대리"하므로, TCP 레벨에서 원래 클라이언트 IP가 사라집니다.
+이것이 L7 프록시(ALB, Nginx, HAProxy 등)의 기본 동작이다. 연결을 "대리"하므로, TCP 레벨에서 원래 클라이언트 IP가 사라진다.
 
-> **참고: L4 로드밸런서(NLB)는 다르다** — AWS NLB는 인스턴스 타겟의 경우 기본적으로 클라이언트 IP를 보존합니다(`preserve_client_ip.enabled` 속성). IP 타겟의 경우에도 TCP/UDP 프로토콜에서는 기본 활성화됩니다. 단, TLS 프로토콜 타겟에서는 기본 비활성화이고, TLS termination을 사용하거나 뒤에 L7 프록시를 두면 다시 같은 문제가 생깁니다. 클라이언트 IP 보존이 불가능한 경우 Proxy Protocol v2를 대안으로 사용할 수 있습니다.
+> **참고: L4 로드밸런서(NLB)는 다르다** — AWS NLB는 인스턴스 타겟의 경우 기본적으로 클라이언트 IP를 보존한다(`preserve_client_ip.enabled` 속성). IP 타겟의 경우에도 TCP/UDP 프로토콜에서는 기본 활성화된다. 단, TLS 프로토콜 타겟에서는 기본 비활성화이고, TLS termination을 사용하거나 뒤에 L7 프록시를 두면 다시 같은 문제가 생긴다. 클라이언트 IP 보존이 불가능한 경우 Proxy Protocol v2를 대안으로 사용할 수 있다.
 
 ---
 
 ## 2. HTTP 관점: "원 IP"는 보통 **헤더**로 전달된다. (근데 스푸핑 가능)
 
-TCP가 끊겨 다시 맺어지면, 원래 클라이언트 IP를 알려면 보통 HTTP 헤더를 씁니다.
+TCP가 끊겨 다시 맺어지면, 원래 클라이언트 IP를 알려면 보통 HTTP 헤더를 쓴다.
 
 ### 대표 헤더
 
-- `X-Forwarded-For` (XFF): 원래 Squid 캐싱 프록시에서 도입한 사실상 표준(de-facto standard) 헤더. 가장 널리 사용됩니다.
-- `Forwarded` ([RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239) 표준): XFF를 대체하기 위해 표준화된 헤더. `for`, `by`, `host`, `proto` 파라미터를 지원하여 더 구조화된 정보를 전달합니다. (예: `Forwarded: for=192.0.2.60;proto=http;by=203.0.113.43`)
-- `X-Real-IP`: Nginx에서 주로 사용하는 비표준 헤더. 단일 IP만 담습니다.
+- `X-Forwarded-For` (XFF): 원래 Squid 캐싱 프록시에서 도입한 사실상 표준(de-facto standard) 헤더. 가장 널리 사용된다.
+- `Forwarded` ([RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239) 표준): XFF를 대체하기 위해 표준화된 헤더. `for`, `by`, `host`, `proto` 파라미터를 지원하여 더 구조화된 정보를 전달한다. (예: `Forwarded: for=192.0.2.60;proto=http;by=203.0.113.43`)
+- `X-Real-IP`: Nginx에서 주로 사용하는 비표준 헤더. 단일 IP만 담는다.
 
 ### X-Forwarded-For 동작 원리
 
-프록시가 하나면 XFF에 유저 IP 하나만 들어갑니다. 프록시가 여러 개일 때가 중요한데, 광고 시스템에서 흔한 CDN + ALB 구성을 봅시다:
+프록시가 하나면 XFF에 유저 IP 하나만 들어간다. 프록시가 여러 개일 때가 중요한데, 광고 시스템에서 흔한 CDN + ALB 구성을 보자:
 
 ```
 유저 (203.0.113.50)
@@ -128,7 +128,7 @@ XFF 체인: client, proxy1, proxy2, ...
 
 ### 보안 함정: 헤더는 "클라이언트가 마음대로 보낼 수 있다"
 
-[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 강조하는 가장 중요한 부분입니다:
+[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 강조하는 가장 중요한 부분이다:
 
 ```
 악의적 유저 (198.51.100.99)
@@ -152,7 +152,7 @@ ALB (10.0.1.100)
 1. "내가 신뢰하는 프록시/로드밸랜서가 붙인 구간"만 신뢰한다
 2. 그 이전에 이미 들어있던 XFF 값은 그 프록시 정책에 따라 보존/추가/제거해야 한다
 
-AWS ALB는 `routing.http.xff_header_processing.mode` 속성으로 이걸 제어합니다(`append`/`preserve`/`remove`). 기본값은 `append`로, 기존 XFF 값 뒤에 직전 홉의 IP를 추가합니다.
+AWS ALB는 `routing.http.xff_header_processing.mode` 속성으로 이를 제어한다(`append`/`preserve`/`remove`). 기본값은 `append`로, 기존 XFF 값 뒤에 직전 홉의 IP를 추가한다.
 
 ---
 
@@ -160,7 +160,7 @@ AWS ALB는 `routing.http.xff_header_processing.mode` 속성으로 이걸 제어�
 
 ### 주의: XFF 헤더가 여러 개일 수 있다
 
-MDN 문서에 따르면, 하나의 요청에 `X-Forwarded-For` 헤더가 **여러 개** 존재할 수 있습니다. 이 경우 모든 헤더의 IP를 하나의 리스트로 합쳐서 처리해야 합니다.
+MDN 문서에 따르면, 하나의 요청에 `X-Forwarded-For` 헤더가 **여러 개** 존재할 수 있다. 이 경우 모든 헤더의 IP를 하나의 리스트로 합쳐서 처리해야 한다.
 
 ```
 X-Forwarded-For: 203.0.113.50, 54.230.10.20
@@ -232,7 +232,7 @@ func ClientIP(r *http.Request) string {
 }
 ```
 
-> **프레임워크 내장 기능**: Express.js는 `app.set('trust proxy', '10.0.0.0/8, 54.230.0.0/16')` 처럼 CIDR 목록을 설정하면, 내부적으로 [proxy-addr](https://www.npmjs.com/package/proxy-addr) 패키지를 사용하여 오른쪽에서부터 신뢰 프록시를 제거하는 동일한 로직을 적용합니다. `req.ip`가 최종 클라이언트 IP를 반환합니다. Nginx는 `proxy_set_header X-Real-IP $remote_addr`와 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`를 조합하여 사용하고, 백엔드에서는 `ngx_http_realip_module`의 `set_real_ip_from`, `real_ip_header` 디렉티브로 신뢰 프록시를 지정할 수 있습니다.
+> **프레임워크 내장 기능**: Express.js는 `app.set('trust proxy', '10.0.0.0/8, 54.230.0.0/16')` 처럼 CIDR 목록을 설정하면, 내부적으로 [proxy-addr](https://www.npmjs.com/package/proxy-addr) 패키지를 사용하여 오른쪽에서부터 신뢰 프록시를 제거하는 동일한 로직을 적용한다. `req.ip`가 최종 클라이언트 IP를 반환한다. Nginx는 `proxy_set_header X-Real-IP $remote_addr`와 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`를 조합하여 사용하고, 백엔드에서는 `ngx_http_realip_module`의 `set_real_ip_from`, `real_ip_header` 디렉티브로 신뢰 프록시를 지정할 수 있다.
 
 ---
 
@@ -248,15 +248,15 @@ func ClientIP(r *http.Request) string {
 유저 A와 B가 같은 IP(203.0.113.1)로 보임!
 ```
 
-모바일 통신사는 IPv4 주소 고갈 문제를 해결하기 위해 CGNAT를 사용합니다. [RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598)에서 정의한 `100.64.0.0/10` 대역(Shared Address Space)을 ISP 내부에서 사용하고, 이를 소수의 공인 IP로 변환합니다. 수천 명의 유저가 같은 공인 IP를 공유할 수 있어서 IP 기반 프리퀀시 캡핑/유저 식별이 사실상 불가능합니다. 광고 업계에서는 IP + User-Agent + 기타 시그널을 조합하거나, 디바이스 ID(ADID/IDFA)를 병행합니다.
+모바일 통신사는 IPv4 주소 고갈 문제를 해결하기 위해 CGNAT를 사용한다. [RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598)에서 정의한 `100.64.0.0/10` 대역(Shared Address Space)을 ISP 내부에서 사용하고, 이를 소수의 공인 IP로 변환한다. 수천 명의 유저가 같은 공인 IP를 공유할 수 있어서 IP 기반 프리퀀시 캡핑/유저 식별이 사실상 불가능하다. 광고 업계에서는 IP + User-Agent + 기타 시그널을 조합하거나, 디바이스 ID(ADID/IDFA)를 병행한다.
 
 ### VPN / 프록시 사용자
 
-한국 유저가 미국 VPN을 타면 서버는 미국 IP를 보게 됩니다. → 미국 타겟 광고가 잘못 노출됨. VPN 탐지를 위해 IP 평판 데이터베이스(MaxMind, IPQualityScore 등)를 활용하는 경우가 많습니다.
+한국 유저가 미국 VPN을 타면 서버는 미국 IP를 보게 된다. → 미국 타겟 광고가 잘못 노출된다. VPN 탐지를 위해 IP 평판 데이터베이스(MaxMind, IPQualityScore 등)를 활용하는 경우가 많다.
 
 ### IPv6
 
-코드에서 IPv4만 가정하면 안 됩니다:
+코드에서 IPv4만 가정하면 안 된다:
 
 ```go
 // ❌ IPv4만 고려

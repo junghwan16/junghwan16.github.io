@@ -5,7 +5,7 @@ date: 2026-01-24 19:00:00 +0900
 categories: [backend, redis]
 ---
 
-최근 검색 기록은 단순해 보이지만 중복 제거, 최신순 정렬, N개 제한 등 여러 요구사항이 얽혀 있습니다. 시스템 설계 면접에서도 자주 나오는 주제입니다.
+최근 검색 기록은 단순해 보이지만 중복 제거, 최신순 정렬, N개 제한 등 여러 요구사항이 얽혀 있다. 이 복합적인 요구사항을 하나의 자료구조로 깔끔하게 해결하는 것이 핵심이며, 시스템 설계 면접에서도 자주 등장하는 주제다.
 
 ## 먼저 생각해볼 것
 
@@ -27,6 +27,8 @@ categories: [backend, redis]
 
 ## 왜 ZSET인가?
 
+요구사항을 하나씩 살펴보면, ZSET이 왜 최적의 선택인지 명확해진다.
+
 | 요구사항 | ZSET 해결 방법 |
 |----------|---------------|
 | 최근순 조회 | `ZREVRANGE` |
@@ -44,7 +46,7 @@ categories: [backend, redis]
 
 ## 타임스탬프 충돌 처리
 
-ms 단위는 충돌 가능. 안정적인 정렬을 위해:
+ms 단위는 충돌 가능하다. 안정적인 정렬을 위해 다음과 같이 처리한다:
 
 ```python
 score = now_ms * 1000 + (now_ns % 1000)
@@ -54,7 +56,7 @@ score = now_ms + random.randint(0, 999)
 
 ## 원자성: Lua 스크립트
 
-동시 요청 시 N 제한이 깨지거나 TTL 갱신 누락 방지:
+동시 요청 시 N 제한이 깨지거나 TTL 갱신이 누락되는 것을 방지해야 한다. Lua 스크립트로 세 연산을 하나로 묶는다:
 
 ```lua
 -- KEYS[1]: recentsearch:{userId}
@@ -75,9 +77,11 @@ end
 return 1
 ```
 
-핵심: `ZADD` + `EXPIRE` + `TRIM`이 **하나의 원자적 연산**
+핵심: `ZADD` + `EXPIRE` + `TRIM`이 **하나의 원자적 연산**이다.
 
 ## API 설계
+
+각 API의 Redis 명령어 매핑을 살펴보자.
 
 ### 조회
 
@@ -123,7 +127,7 @@ DEL recentsearch:{userId}
 ZREMRANGEBYSCORE key -inf (now-90d)
 ```
 
-배치 job으로 분리 권장 (모든 write마다 하면 비용 증가)
+배치 job으로 분리하는 것을 권장한다 (모든 write마다 수행하면 비용이 증가한다).
 
 ## 트래픽/성능 계산
 
@@ -136,15 +140,15 @@ ZREMRANGEBYSCORE key -inf (now-90d)
 
 ### 결론
 
-- Redis 단일 클러스터로 충분
-- 저장은 best-effort로 비동기 처리
-- Redis 장애 시에도 검색 기능은 정상 동작하도록 격리
+- Redis 단일 클러스터로 충분하다
+- 저장은 best-effort로 비동기 처리한다
+- Redis 장애 시에도 검색 기능은 정상 동작하도록 격리해야 한다
 
 ## 메모리 산정
 
 ### 상한 추정
 
-- 활성 유저 100만 × 100개 = 1억 엔트리
+- 활성 유저 100만 x 100개 = 1억 엔트리
 - 중복 제거 + TTL로 실제는 훨씬 적음
 - 비활동 유저 키는 자동 삭제
 
@@ -218,3 +222,11 @@ def normalize_query(q: str) -> str:
 > - 검색어를 저장하기 전에 정규화(trim, lowercase 등)하고 있는가?
 > - 유저 탈퇴 시 검색 기록 키를 삭제하는 로직이 있는가?
 > - Redis 장애 시에도 검색 기능이 정상 동작하도록 격리되어 있는가?
+
+---
+
+## 참고자료
+
+- [Redis - Sorted Sets](https://redis.io/docs/latest/develop/data-types/sorted-sets/)
+- [Redis - ZADD](https://redis.io/docs/latest/commands/zadd/)
+- [Redis - Lua Scripting](https://redis.io/docs/latest/develop/interact/programmability/eval-intro/)

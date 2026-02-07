@@ -5,7 +5,7 @@ date: 2026-01-24 15:00:00 +0900
 categories: [backend, redis]
 ---
 
-서버를 무상태로 만들고 싶다면 세션을 Redis로 옮기는 것이 일반적인 선택입니다. 하지만 보안과 TTL 전략을 놓치면 문제가 됩니다.
+서버를 무상태로 만들고 싶다면 세션을 Redis로 옮기는 것이 일반적인 선택이다. 단, 보안과 TTL 전략을 놓치면 심각한 문제로 이어질 수 있으므로 설계 단계에서 반드시 고려해야 한다.
 
 ## 먼저 생각해볼 것
 
@@ -16,9 +16,9 @@ categories: [backend, redis]
 
 ## 왜 Redis 세션인가
 
-- 서버를 **무상태(stateless)**로 만들어 수평 확장 단순화
-- 인메모리라 빠르고, TTL로 자동 청소
-- Sentinel/Cluster로 SPOF 제거 가능
+- 서버를 **무상태(stateless)**로 만들어 수평 확장을 단순화할 수 있다
+- 인메모리라 빠르고, TTL로 자동 청소된다
+- Sentinel/Cluster로 SPOF를 제거할 수 있다
 
 ## 세션 키/값 설계
 
@@ -116,14 +116,14 @@ INFO keyspace
 
 ### 클러스터 환경
 
-- 해시태그로 동일 사용자 세션을 한 슬롯에 모을지 결정
+- 해시태그로 동일 사용자 세션을 한 슬롯에 모을지 결정한다
 - 예: `session:{user:123}:abc123`
 
 ### 가용성
 
-- 세션은 캐시 성격 → 복제본 읽기 허용 가능
-- 쓰기는 마스터로
-- Sentinel/Cluster로 자동 페일오버
+- 세션은 캐시 성격이므로 복제본 읽기를 허용할 수 있다
+- 쓰기는 마스터로 전달한다
+- Sentinel/Cluster로 자동 페일오버를 구성한다
 
 ### 만료 이벤트 구독
 
@@ -132,7 +132,7 @@ CONFIG SET notify-keyspace-events Ex
 PSUBSCRIBE "__keyevent@0__:expired"
 ```
 
-강제 로그아웃 등 실시간 후속 작업이 필요할 때 사용
+강제 로그아웃 등 실시간 후속 작업이 필요할 때 사용한다.
 
 ## 흔한 실수
 
@@ -146,7 +146,7 @@ PSUBSCRIBE "__keyevent@0__:expired"
 
 - `used_memory`, `connected_clients`
 - `expired_keys`, `evicted_keys`
-- 세션 미스율 → TTL 정책 조정에 활용
+- 세션 미스율을 추적하여 TTL 정책 조정에 활용한다
 
 ---
 
@@ -193,3 +193,12 @@ def validate_session(sid: str, request_ip: str) -> bool:
 > - 로그인 시 새 세션 ID를 발급하고 이전 세션을 삭제하는가?
 > - 세션에 비밀번호나 민감 정보를 저장하고 있지 않은가?
 > - `SET` 후 `EXPIRE` 따로 호출하는 대신 `SET ... EX`를 쓰고 있는가?
+
+---
+
+## 참고자료
+
+- [OWASP - Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+- [Redis - Strings](https://redis.io/docs/latest/develop/data-types/strings/)
+- [Flask - Sessions](https://flask.palletsprojects.com/en/stable/quickstart/#sessions)
+- [Redis - EXPIRE](https://redis.io/docs/latest/commands/expire/)

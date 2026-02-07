@@ -5,24 +5,24 @@ date: 2026-01-23 20:00:00 +0900
 categories: [database, mysql]
 ---
 
-회사에서 파티셔닝을 자주 사용하는데, 제 이해도가 따라가지 못한다는 걸 느꼈습니다. 특히 인덱스가 어떻게 동작하는지, FK를 지원하지 않는다는 점도 몰랐습니다. 이번 기회에 정리해봅니다.
+회사에서 파티셔닝을 자주 사용하는데, 막상 내 이해도가 따라가지 못하고 있다는 걸 깨달았다. 인덱스가 파티션 위에서 어떻게 동작하는지, FK를 아예 지원하지 않는다는 사실조차 모르고 있었다. 이번 기회에 제대로 정리해봤다.
 
 ## 먼저 생각해볼 것
 
-파티셔닝을 도입하기 전에 스스로 물어보세요:
+파티셔닝을 도입하기 전에 스스로에게 물어보자:
 
 > - 현재 테이블에 데이터가 몇 건인가?
 > - 인덱스만으로 해결이 안 되는가?
 > - 앞으로 데이터가 얼마나 빠르게 증가할 것인가?
 > - 오래된 데이터를 주기적으로 삭제해야 하는가?
 
-**수천만 건 이하**라면 인덱스 최적화가 먼저입니다. 파티셔닝은 복잡성을 추가하는 만큼, 정말 필요할 때만 도입하세요.
+**수천만 건 이하**라면 인덱스 최적화가 먼저다. 파티셔닝은 복잡성을 추가하는 만큼, 정말 필요할 때만 도입해야 한다.
 
 ## 파티셔닝이란?
 
 > 거대한 테이블을 작은 덩어리로 쪼개어 물리적으로 나누어 저장하는 기술
 
-사용자에게는 하나의 논리적 테이블로 보이지만, 내부적으로는 여러 파일로 나누어 관리됩니다.
+사용자에게는 하나의 논리적 테이블로 보이지만, 내부적으로는 여러 파일로 나누어 관리된다.
 
 ```
 전체 테이블
@@ -49,11 +49,11 @@ categories: [database, mysql]
 
 ## 핵심 제약: PK/Unique Key 규칙
 
-**파티션 키는 반드시 PK나 Unique Key에 포함되어야 합니다.**
+**파티션 키는 반드시 PK나 Unique Key에 포함되어야 한다.**
 
 이유: "모든 파티션을 뒤지지 않고도 유일성을 보장하기 위해서"
 
-예를 들어 `id`가 PK인 테이블을 `created_at` 기준으로 파티셔닝했다고 가정합니다:
+예를 들어 `id`가 PK인 테이블을 `created_at` 기준으로 파티셔닝했다고 가정해보자:
 
 ```
 id=10 삽입 시도
@@ -133,9 +133,9 @@ PARTITIONS 4;
 
 ## 파티션 프루닝 (Partition Pruning)
 
-**파티셔닝의 핵심 성능 포인트**입니다.
+파티셔닝의 핵심 성능 포인트다.
 
-옵티마이저가 WHERE 절을 보고 불필요한 파티션을 제외합니다.
+옵티마이저가 WHERE 절을 보고 불필요한 파티션을 제외한다.
 
 ### 프루닝이 동작하는 경우
 
@@ -157,7 +157,7 @@ EXPLAIN SELECT * FROM orders WHERE amount > 1000;
 partitions: p2023,p2024,p2025,p_future  ← 모든 파티션 스캔
 ```
 
-WHERE 절에 파티션 키가 없으면 **모든 파티션을 스캔**합니다.
+WHERE 절에 파티션 키가 없으면 **모든 파티션을 스캔**한다.
 
 ### 자가 체크
 
@@ -166,7 +166,7 @@ WHERE 절에 파티션 키가 없으면 **모든 파티션을 스캔**합니다.
 
 ## FK(Foreign Key) 미지원
 
-MySQL InnoDB는 **파티셔닝된 테이블에 FK를 지원하지 않습니다.**
+MySQL InnoDB는 **파티셔닝된 테이블에 FK를 지원하지 않는다.**
 
 ### 대안
 
@@ -228,7 +228,7 @@ ALTER TABLE orders ADD PARTITION (
 );
 ```
 
-`p_future`가 있으면 먼저 재구성 필요:
+`p_future`가 있으면 먼저 재구성이 필요하다:
 
 ```sql
 ALTER TABLE orders REORGANIZE PARTITION p_future INTO (
@@ -259,3 +259,12 @@ ALTER TABLE orders DROP PARTITION p2023;
 | 오래된 데이터 삭제 | 45분 (DELETE) | **3초** (DROP PARTITION) |
 
 프루닝이 동작해야 효과가 있다. 파티션 키가 WHERE에 없으면 모든 파티션을 스캔한다.
+
+---
+
+## 참고자료
+
+- [MySQL 8.0 Reference Manual - Partitioning](https://dev.mysql.com/doc/refman/8.0/en/partitioning.html)
+- [MySQL 8.0 - Partition Pruning](https://dev.mysql.com/doc/refman/8.0/en/partitioning-pruning.html)
+- [MySQL 8.0 - Partitioning Limitations](https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations.html)
+- [Percona - MySQL Partitioning](https://www.percona.com/blog/mysql-partitioning/)

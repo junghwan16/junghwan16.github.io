@@ -5,18 +5,18 @@ date: 2026-01-23 19:00:00 +0900
 categories: [backend, redis]
 ---
 
-"DB 쿼리가 너무 느려요", "같은 데이터를 계속 조회해요" — 이런 상황에서 캐시 도입을 고민하게 됩니다. 이 글에서는 캐시의 기본 개념부터 Redis를 활용한 캐싱 전략, 그리고 실무에서 자주 발생하는 문제들을 다룹니다.
+"DB 쿼리가 너무 느려요", "같은 데이터를 계속 조회해요" -- 이런 말이 나오기 시작하면 캐시 도입을 고민하게 된다. 그런데 캐시는 도입보다 운영이 어렵다. 잘못 설계하면 오히려 장애의 원인이 된다. 이 글에서는 캐시의 기본 개념부터 Redis를 활용한 캐싱 전략, 그리고 실무에서 자주 발생하는 문제들을 알아보자.
 
 ## 먼저 생각해볼 것
 
-캐시를 도입하기 전에 스스로 물어보세요:
+캐시를 도입하기 전에 스스로에게 물어보자:
 
 > - 현재 병목이 정말 DB 조회인가? (프로파일링 해봤는가?)
 > - 같은 데이터를 얼마나 자주 조회하는가?
 > - 데이터가 얼마나 자주 변경되는가?
 > - 캐시가 틀린 데이터를 보여줘도 괜찮은가? (얼마나 오래?)
 
-이 질문들에 명확히 답할 수 없다면, 캐시보다 쿼리 최적화나 인덱스 추가가 먼저일 수 있습니다.
+이 질문들에 명확히 답할 수 없다면, 캐시보다 쿼리 최적화나 인덱스 추가가 먼저일 수 있다.
 
 ## 캐시가 효과적인 경우
 
@@ -30,14 +30,14 @@ categories: [backend, redis]
 ## 왜 Redis인가?
 
 - **Key-Value 구조**: 직관적인 저장과 조회
-- **인메모리**: 디스크 DB보다 100배 이상 빠름
+- **인메모리**: 디스크 DB보다 100배 이상 빠르다
 - **다양한 자료구조**: String, List, Hash, Set, Sorted Set
 - **TTL 지원**: 자동 만료로 메모리 관리
 - **고가용성**: Sentinel, Cluster로 장애 대응
 
 ## 읽기 전략: Cache-Aside
 
-가장 널리 사용되는 패턴입니다.
+가장 널리 사용되는 패턴이다.
 
 ```
 요청 → 캐시 확인 → Hit? → 반환
@@ -74,7 +74,7 @@ def get_user(user_id: str) -> dict:
 
 ### Write-Through (동시 쓰기)
 
-DB와 캐시를 동시에 업데이트합니다.
+DB와 캐시를 동시에 업데이트한다.
 
 ```python
 def update_user(user_id: str, data: dict) -> dict:
@@ -93,7 +93,7 @@ def update_user(user_id: str, data: dict) -> dict:
 
 ### Cache Invalidation (캐시 무효화)
 
-DB 업데이트 시 캐시를 삭제합니다.
+DB 업데이트 시 캐시를 삭제한다.
 
 ```python
 def update_user(user_id: str, data: dict) -> dict:
@@ -102,7 +102,7 @@ def update_user(user_id: str, data: dict) -> dict:
     return updated
 ```
 
-**장점**: 쓰기가 빠름
+**장점**: 쓰기가 빠르다
 **단점**: 다음 읽기에서 캐시 미스 발생
 
 ### 자가 체크
@@ -112,7 +112,7 @@ def update_user(user_id: str, data: dict) -> dict:
 
 ## Write-Behind (쓰기 지연)
 
-쓰기가 매우 빈번한 경우에 적합합니다.
+쓰기가 매우 빈번한 경우에 적합하다.
 
 ```python
 def update_likes(video_id: str) -> int:
@@ -128,8 +128,8 @@ def update_likes(video_id: str) -> int:
     return current
 ```
 
-**장점**: 쓰기가 매우 빠름, DB 부하 감소
-**단점**: 캐시 장애 시 데이터 유실 위험
+**장점**: 쓰기가 매우 빠르고, DB 부하가 감소한다
+**단점**: 캐시 장애 시 데이터 유실 위험이 있다
 
 ### 자가 체크
 
@@ -156,7 +156,7 @@ SET user:123 "data" EX 60  # 60초 후 만료
 
 ## Cache Stampede 문제
 
-인기 있는 캐시가 만료되는 순간, 수많은 요청이 동시에 DB로 몰리는 현상입니다.
+인기 있는 캐시가 만료되는 순간, 수많은 요청이 동시에 DB로 몰리는 현상이다.
 
 ### 해결책 1: Mutex Lock
 
@@ -187,7 +187,7 @@ jitter = random.randint(0, 60)
 cache.set(key, data, ex=base_ttl + jitter)
 ```
 
-만료 시점을 분산시켜 동시 만료를 방지합니다.
+만료 시점을 분산시켜 동시 만료를 방지한다.
 
 ### 자가 체크
 
@@ -196,7 +196,7 @@ cache.set(key, data, ex=base_ttl + jitter)
 
 ## Cache Penetration 문제
 
-존재하지 않는 데이터를 반복 요청해서 DB에 불필요한 부하를 주는 상황입니다.
+존재하지 않는 데이터를 반복 요청해서 DB에 불필요한 부하를 주는 상황이다.
 
 ### 해결책: Null 값 캐싱
 
@@ -251,7 +251,7 @@ def get_data(key: str):
 | MySQL SELECT (인덱스) | 1~10ms |
 | MySQL SELECT (풀 스캔) | 100ms~수 초 |
 
-캐시 히트 시 **10~100배** 빠르다. 네트워크 RTT 포함 시 실제 환경에서는 1~2ms 예상.
+캐시 히트 시 **10~100배** 빠르다. 네트워크 RTT 포함 시 실제 환경에서는 1~2ms 정도를 예상할 수 있다.
 
 ---
 
@@ -279,3 +279,12 @@ hit_rate = hits / (hits + misses) * 100
 | 80~95% | 보통 | TTL 조정 검토 |
 | 80% 미만 | 주의 | 캐시 전략 재검토 |
 
+---
+
+## 참고자료
+
+- [Redis Documentation - Data Types](https://redis.io/docs/latest/develop/data-types/)
+- [Redis Documentation - Client-side caching](https://redis.io/docs/latest/develop/use/client-side-caching/)
+- [AWS - Caching Best Practices](https://aws.amazon.com/caching/best-practices/)
+- [Martin Fowler - Two Hard Things](https://martinfowler.com/bliki/TwoHardThings.html)
+- [Redis Documentation - Eviction](https://redis.io/docs/latest/develop/reference/eviction/)

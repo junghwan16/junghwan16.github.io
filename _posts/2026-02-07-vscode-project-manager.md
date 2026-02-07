@@ -25,3 +25,9 @@ Git 프로젝트를 자동으로 감지하여 프로젝트 목록에 추가할 �
 - Project Manager 익스텐션으로 `⌥ + ⌘ + P`로 워크스페이스 간 빠른 이동 가능
 - Git Base Folders 설정으로 Git 프로젝트를 자동으로 감지하여 프로젝트 목록에 추가
 - 수동으로 프로젝트를 추가할 필요 없이 상위 폴더만 지정하면 됨
+
+---
+
+## 참고자료
+
+- [VS Marketplace - Project Manager](https://marketplace.visualstudio.com/items?itemName=alefragnani.project-manager) — 익스텐션 설치 및 상세 설정 가이드

@@ -5,7 +5,7 @@ date: 2026-01-24 10:00:00 +0900
 categories: [backend, redis]
 ---
 
-Redis의 모든 키는 만료 시간(expiration)을 설정할 수 있습니다. 만료 시간이 지나면 키는 자동으로 삭제됩니다. 캐시, 세션, 임시 토큰 등 대부분의 Redis 사용 사례에서 TTL은 필수입니다.
+캐시를 쓰면서 TTL을 설정하지 않으면, Redis 메모리는 언젠가 반드시 터진다. Redis의 모든 키는 만료 시간(expiration)을 설정할 수 있다. 만료 시간이 지나면 키는 자동으로 삭제된다. 캐시, 세션, 임시 토큰 등 대부분의 Redis 사용 사례에서 TTL은 필수다. 각 커맨드의 동작 방식과 주의사항을 정확히 알아야 실수를 피할 수 있다.
 
 ## 먼저 생각해볼 것
 
@@ -17,7 +17,7 @@ Redis의 모든 키는 만료 시간(expiration)을 설정할 수 있습니다. 
 
 ### TTL (Time To Live)
 
-키의 남은 만료 시간을 **초 단위**로 반환합니다.
+키의 남은 만료 시간을 **초 단위**로 반환한다.
 
 ```
 > SET mykey "Hello"
@@ -52,7 +52,7 @@ def test_ttl_returns_minus_two_when_key_not_exists(r: redis.Redis):
 
 ### PTTL (Precise TTL)
 
-키의 남은 만료 시간을 **밀리초 단위**로 반환합니다.
+키의 남은 만료 시간을 **밀리초 단위**로 반환한다.
 
 ```
 > PTTL mykey
@@ -63,7 +63,7 @@ def test_ttl_returns_minus_two_when_key_not_exists(r: redis.Redis):
 
 ### EXPIRE
 
-키의 만료 시간을 **초 단위**로 설정합니다.
+키의 만료 시간을 **초 단위**로 설정한다.
 
 ```
 > SET mykey "Hello"
@@ -76,7 +76,7 @@ OK
 
 ### PEXPIRE
 
-키의 만료 시간을 **밀리초 단위**로 설정합니다.
+키의 만료 시간을 **밀리초 단위**로 설정한다.
 
 ```
 > PEXPIRE mykey 5000
@@ -105,7 +105,7 @@ def test_key_deleted_after_expiration(r: redis.Redis):
 
 ## EXPIREAT과 PEXPIREAT - 절대 시간으로 만료 설정
 
-Unix 타임스탬프를 사용하여 특정 시점에 키가 만료되도록 설정합니다.
+Unix 타임스탬프를 사용하여 특정 시점에 키가 만료되도록 설정한다.
 
 ```
 > SET mykey "Hello"
@@ -128,7 +128,7 @@ def test_expireat_sets_absolute_unix_timestamp(r: redis.Redis):
 
 ## PERSIST - 만료 제거
 
-키의 만료 시간을 제거하여 영구적으로 유지되도록 합니다.
+키의 만료 시간을 제거하여 영구적으로 유지되도록 한다.
 
 ```
 > SET mykey "Hello"
@@ -145,7 +145,7 @@ OK
 
 ## SET 명령의 만료 옵션
 
-SET 명령은 값 설정과 동시에 만료 시간을 설정할 수 있습니다.
+SET 명령은 값 설정과 동시에 만료 시간을 지정할 수 있다.
 
 ### EX 옵션 - 초 단위 만료
 
@@ -167,18 +167,18 @@ OK
 
 ### SETEX - 값과 만료를 원자적으로 설정
 
-`SET key value EX seconds`와 동일하지만 원자적 연산입니다.
+`SET key value EX seconds`와 동일하지만 원자적 연산이다.
 
 ```
 > SETEX mykey 60 "Hello"
 OK
 ```
 
-> SETEX는 원자적 연산이므로, SET과 EXPIRE를 별도로 실행하는 것보다 안전합니다. 두 명령 사이에 다른 클라이언트가 개입할 가능성이 없습니다.
+> SETEX는 원자적 연산이므로, SET과 EXPIRE를 별도로 실행하는 것보다 안전하다. 두 명령 사이에 다른 클라이언트가 개입할 가능성이 없다.
 
 ### SET NX/EX 조합으로 락/멱등 처리
 
-`NX`(키 없을 때만)와 `EX` 옵션을 함께 쓰면 락이나 멱등 토큰을 안전하게 설정할 수 있습니다.
+`NX`(키 없을 때만)와 `EX` 옵션을 함께 쓰면 락이나 멱등 토큰을 안전하게 설정할 수 있다.
 
 ```
 SET order:123 processed NX EX 60
@@ -186,7 +186,7 @@ SET order:123 processed NX EX 60
 
 ## GETEX - 조회와 만료 설정을 동시에 (Redis 6.2+)
 
-값을 조회하면서 동시에 만료 시간을 설정하거나 제거할 수 있습니다.
+값을 조회하면서 동시에 만료 시간을 설정하거나 제거할 수 있다.
 
 ```
 > SET mykey "Hello"
@@ -208,11 +208,11 @@ OK
 
 ### 0초/음수 TTL은 즉시 삭제
 
-`EXPIRE key 0` 또는 음수 TTL은 키를 즉시 삭제합니다.
+`EXPIRE key 0` 또는 음수 TTL은 키를 즉시 삭제한다.
 
 ### 만료는 키 단위로 동작
 
-Hash나 List의 개별 필드/요소에는 만료를 설정할 수 없습니다. 전체 키에 대해서만 가능합니다.
+Hash나 List의 개별 필드/요소에는 만료를 설정할 수 없다. 전체 키에 대해서만 가능하다.
 
 ```
 > HSET user:1 name "Alice" age 30
@@ -224,7 +224,7 @@ Hash나 List의 개별 필드/요소에는 만료를 설정할 수 없습니다.
 
 ### 키 덮어쓰기 시 만료 제거
 
-키에 새 값을 설정하면 기존 만료 시간이 제거됩니다 (EX/PX 옵션을 사용하지 않는 경우).
+키에 새 값을 설정하면 기존 만료 시간이 제거된다 (EX/PX 옵션을 사용하지 않는 경우).
 
 ```
 > SET mykey "Hello" EX 60
@@ -239,7 +239,7 @@ OK
 
 ### 만료 삭제 방식
 
-만료된 키는 두 가지 방법으로 삭제됩니다:
+만료된 키는 두 가지 방법으로 삭제된다:
 
 1. **Passive expiration**: 클라이언트가 만료된 키에 접근할 때 삭제
 2. **Active expiration**: Redis가 주기적으로(초당 10회) 만료된 키를 샘플링하여 삭제
@@ -273,3 +273,12 @@ EXPIRE key 60 LT    # 기존 TTL보다 짧게 만들 때만
 | `SET key value PX ms` | 값 설정과 만료 동시에 | 밀리초 |
 | `SETEX key seconds value` | 값 설정과 만료 동시에 | 초 |
 | `GETEX key [EX seconds]` | 조회와 만료 설정 동시에 | 초/밀리초 |
+
+---
+
+## 참고자료
+
+- [Redis - EXPIRE](https://redis.io/docs/latest/commands/expire/)
+- [Redis - Key Expiration](https://redis.io/docs/latest/develop/use/keyspace/)
+- [Redis - GETEX](https://redis.io/docs/latest/commands/getex/)
+- [Redis - Keyspace Notifications](https://redis.io/docs/latest/develop/use/keyspace-notifications/)
