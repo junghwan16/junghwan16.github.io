@@ -170,3 +170,62 @@ article strong {
   padding-top: 2rem;
   border-top: 1px solid #eee;
 }
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+
+  a {
+    color: #e0e0e0;
+  }
+
+  header {
+    border-bottom-color: #333;
+  }
+
+  footer {
+    border-top-color: #333;
+    color: #999;
+  }
+
+  .post-list .date {
+    color: #999;
+  }
+
+  article time {
+    color: #999;
+  }
+
+  article blockquote {
+    border-left-color: #444;
+    color: #999;
+  }
+
+  article pre {
+    background: #2a2a2a;
+  }
+
+  article p code {
+    background: #2a2a2a;
+  }
+
+  article th,
+  article td {
+    border-color: #444;
+  }
+
+  article th {
+    background: #2a2a2a;
+  }
+
+  article hr {
+    border-top-color: #333;
+  }
+
+  .comments {
+    border-top-color: #333;
+  }
+}
