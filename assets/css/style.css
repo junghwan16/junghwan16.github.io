@@ -164,6 +164,26 @@ article strong {
   font-weight: 600;
 }
 
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.pagination .page-info {
+  color: #666;
+}
+
+.pagination .disabled {
+  color: #ccc;
+}
+
 /* Comments */
 .comments {
   margin-top: 3rem;
@@ -227,5 +247,17 @@ article strong {
 
   .comments {
     border-top-color: #333;
+  }
+
+  .pagination {
+    border-top-color: #333;
+  }
+
+  .pagination .page-info {
+    color: #999;
+  }
+
+  .pagination .disabled {
+    color: #555;
   }
 }
