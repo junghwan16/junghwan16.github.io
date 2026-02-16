@@ -87,7 +87,7 @@ Dynamo가 사용하는 기법들을 한눈에 정리하면 다음과 같다.
 | 영구적인 장애      | 머클 트리를 통한 안티 엔트로피                           | 백그라운드에서 레플리카 동기화                   |
 | 멤버십과 장애 감지 | 가십 기반 프로토콜                                       | 대칭성 유지, 중앙 레지스트리 불필요              |
 
-각 기법의 상세 내용은 시리즈의 [벡터 클럭과 분산 충돌 해결](/backend/infrastructure/vector-clock-conflict-resolution/), [장애는 일상이다](/backend/infrastructure/dynamo-fault-tolerance/) 편에서 다룬다.
+각 기법의 상세 내용은 [벡터 클럭과 버전 충돌 해결](/backend/infrastructure/vector-clock-conflict-resolution/), [Dynamo의 장애 처리](/backend/infrastructure/dynamo-fault-tolerance/) 편에서 다룬다.
 
 ---
 
