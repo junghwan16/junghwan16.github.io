@@ -13,8 +13,6 @@ categories: [backend, infrastructure]
 
 ## 예시
 
-상황을 하나 생각해 보자.
-
 1. A 사용자가 은행 계좌에 10만원을 입금한다.
 2. 바로 이어서 B 사용자가 잔액을 조회한다.
 
@@ -78,3 +76,11 @@ B는 반드시 10만원이 증가된 금액을 본다. A와 B가 다른 상태�
 | 채팅 메시지   | 경우에 따라 다름 | 순서 보장이 중요하면 강하게, 아니면 느슨하게 |
 
 시스템을 설계할 때 "어디까지 일관성을 요구할 것인가?"는 가장 중요한 결정 중 하나다. 강하게 잡으면 안전하지만 느려질 수 있고, 약하게 잡으면 빠르지만 잠깐 다른 값을 볼 수 있다.
+
+---
+
+## 참고자료
+
+- [CAP Theorem - Wikipedia](https://en.wikipedia.org/wiki/CAP_theorem) — CAP 이론의 정의와 증명
+- [Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services](https://users.ece.cmu.edu/~adrian/731-sp04/readings/GL-cap.pdf) — CAP 정리의 원 논문 (Gilbert & Lynch, 2002)
+- [Eventually Consistent - Werner Vogels](https://www.allthingsdistributed.com/2008/12/eventually_consistent.html) — Amazon CTO가 쓴 최종 일관성 해설
