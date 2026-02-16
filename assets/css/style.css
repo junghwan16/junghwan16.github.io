@@ -130,7 +130,7 @@ article code {
   font-size: 0.85rem;
 }
 
-article p code {
+article :not(pre) > code {
   background: #f6f6f6;
   padding: 0.1rem 0.3rem;
   border-radius: 3px;
@@ -228,7 +228,7 @@ article strong {
     background: #2a2a2a;
   }
 
-  article p code {
+  article :not(pre) > code {
     background: #2a2a2a;
   }
 

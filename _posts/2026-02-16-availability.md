@@ -13,7 +13,7 @@ categories: [backend, infrastructure]
 
 ## 공식
 
-$$가용성 = \frac{Uptime}{Uptime + Downtime}$$
+$$\text{가용성} = \frac{\text{Uptime}}{\text{Uptime} + \text{Downtime}}$$
 
 ---
 
@@ -23,7 +23,7 @@ $$가용성 = \frac{Uptime}{Uptime + Downtime}$$
 
 만약 1년에 8시간 장애가 났다면:
 
-$$가용성 = \frac{8752}{8760} \approx 99.91\%$$
+$$\text{가용성} = \frac{8752}{8760} \approx 99.91\%$$
 
 ---
 
