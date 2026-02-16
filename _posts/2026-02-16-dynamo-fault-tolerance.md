@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "장애는 일상이다 — Sloppy Quorum에서 Merkle Tree까지"
+title: "Sloppy Quorum과 Merkle Tree — Dynamo의 장애 처리"
 date: 2026-02-16 19:00:00 +0900
 categories: [backend, infrastructure]
 ---

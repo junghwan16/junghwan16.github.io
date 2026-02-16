@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "Dynamo에서 DynamoDB로 — 논문이 서비스가 되기까지"
+title: "Dynamo에서 DynamoDB로 — 프로덕션 교훈과 차이점"
 date: 2026-02-16 20:00:00 +0900
 categories: [backend, infrastructure]
 ---
