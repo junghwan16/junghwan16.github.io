@@ -9,7 +9,7 @@ categories: [backend, infrastructure]
 
 이 글에서는 Dynamo 논문의 핵심 내용을 정리한다.
 
-**참고:** 논문에 나오는 Dynamo와 AWS의 DynamoDB는 같은 철학에서 출발했지만, 다른 시스템이다. DynamoDB에 대해서는 [시리즈 마지막 글](/backend/infrastructure/dynamo-to-dynamodb/)에서 다룬다.
+**참고:** 논문에 나오는 Dynamo와 AWS의 DynamoDB는 같은 철학에서 출발했지만, 다른 시스템이다.
 
 ---
 
