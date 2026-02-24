@@ -1,7 +1,7 @@
 ---
 layout: single
 title: "OpenRTB PM 가이드"
-date: 2026-02-24 12:00:00 +0900
+date: 2026-02-24 15:00:00 +0900
 categories: [ad-tech, openrtb]
 ---
 
