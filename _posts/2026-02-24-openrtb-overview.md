@@ -1,8 +1,8 @@
 ---
+layout: single
 title: "OpenRTB 입문 — 광고 요청부터 과금까지 전체 흐름"
 date: 2026-02-24 10:00:00 +0900
 categories: [ad-tech, openrtb]
-mermaid: true
 ---
 
 OpenRTB는 광고 지면을 실시간으로 사고파는 표준 프로토콜입니다. 처음 접하면 등장인물(Publisher, SSP, DSP)도 많고 nurl·burl·adm 같은 낯선 용어도 쏟아집니다. 이 글에서는 전체 흐름을 택배 비유로 먼저 잡은 뒤, 단계별로 무슨 일이 일어나는지 풀어 씁니다. 마지막에는 경매 방식(1st Price vs 2nd Price)까지 다뤄 OpenRTB의 핵심 개념을 한 자리에서 정리합니다.

@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "클라이언트의 IP를 알아내는 방법"
 date: 2026-02-07 13:00:00 +0900
 categories: [backend, network]

@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "Dynamo 논문의 프로덕션 교훈"
 date: 2026-02-16 20:00:00 +0900
 categories: [backend, infrastructure]

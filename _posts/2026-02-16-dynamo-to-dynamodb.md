@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "Dynamo는 왜 DynamoDB가 되었나"
 date: 2026-02-16 21:00:00 +0900
 categories: [backend, infrastructure]

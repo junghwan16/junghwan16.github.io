@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "&가 사라졌다: URL, JSON, HTML 세 가지 인코딩 레이어 이해하기"
 date: 2026-02-09 23:00:00 +0900
 categories: [backend, web]

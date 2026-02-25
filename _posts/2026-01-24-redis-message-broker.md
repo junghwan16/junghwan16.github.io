@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "Redis로 메시지 큐를 구현할 수 있을까"
 date: 2026-01-24 16:00:00 +0900
 categories: [backend, redis]

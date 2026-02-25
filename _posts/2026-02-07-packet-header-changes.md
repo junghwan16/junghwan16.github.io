@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "패킷이 홉을 거칠 때 헤더는 어떻게 바뀌는가"
 date: 2026-02-07 12:00:00 +0900
 categories: [network]

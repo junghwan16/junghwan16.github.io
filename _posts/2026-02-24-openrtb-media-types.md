@@ -1,8 +1,8 @@
 ---
+layout: single
 title: "OpenRTB 미디어 타입 처리 — mtype 판별과 멀티포맷 전략"
 date: 2026-02-24 14:00:00 +0900
 categories: [ad-tech, openrtb]
-mermaid: true
 ---
 
 OpenRTB 경매에서 bid를 수신한 SSP는 그 bid가 Banner인지, Video인지, Native인지 알아야 한다. 잘못된 타입으로 판단하면 광고가 깨지거나 트래킹이 누락된다. 이 글은 실무에서 자주 맞닥뜨리는 mtype 판별 문제와 그 대응 전략을 정리한다.
