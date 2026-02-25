@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "유닛 테스트에서 '무엇을' 테스트해야 하는가"
 date: 2026-02-08 12:00:00 +0900
 categories: [backend, testing]

@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "Kafka vs RabbitMQ 핵심 개념 정리"
 date: 2026-01-30 10:00:00 +0900
 categories: [backend, messaging]

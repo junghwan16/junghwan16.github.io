@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "Redis로 카운팅할 때, 어떤 자료구조를 써야 할까"
 date: 2026-01-24 17:00:00 +0900
 categories: [backend, redis]

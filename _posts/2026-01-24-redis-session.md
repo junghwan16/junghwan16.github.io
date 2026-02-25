@@ -1,4 +1,5 @@
 ---
+layout: single
 title: "세션 스토어로 Redis를 쓸 때 고려할 것들"
 date: 2026-01-24 15:00:00 +0900
 categories: [backend, redis]
