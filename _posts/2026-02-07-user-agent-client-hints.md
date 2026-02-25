@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "User Agent Client Hints에 대해 알아보자"
 date: 2026-02-07 14:00:00 +0900
 categories: [frontend, web]

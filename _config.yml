@@ -1,29 +1,118 @@
+theme: jekyll-theme-chirpy
+
+lang: ko-KR
+timezone: Asia/Seoul
+
 # Site
 title: 조정환
-description: "Backend Engineer"
+tagline: Backend Engineer
+description: >-
+  백엔드 엔지니어 조정환의 기술 블로그
 url: "https://junghwan16.github.io"
 baseurl: ""
+
+github:
+  username: junghwan16
+
+social:
+  name: 조정환
+  links:
+    - https://github.com/junghwan16
+
+# Theme mode — leave empty for auto (follows system preference)
+theme_mode:
+
+# Avatar (optional — set a URL or leave empty)
+avatar:
+
+# Table of Contents in posts
+toc: true
+
+# Comments
+comments:
+  provider: giscus
+  giscus:
+    repo: junghwan16/junghwan16.github.io
+    repo_id: R_kgDOQ_xZJQ
+    category: Announcements
+    category_id: DIC_kwDOQ_xZJc4C2AmU
+    mapping: pathname
+    strict: 0
+    input_position: bottom
+    lang: ko
+    reactions_enabled: 1
 
 # Build
 future: true
 markdown: kramdown
 highlighter: rouge
-paginate: 10
-paginate_path: "/page:num/"
 
 kramdown:
   input: GFM
   syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: highlight
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+      start_line: 1
 
-# Giscus comments
-giscus:
-  repo: "junghwan16/junghwan16.github.io"
-  repo_id: "R_kgDOQ_xZJQ"
-  category: "Announcements"
-  category_id: "DIC_kwDOQ_xZJc4C2AmU"
+# Collections
+collections:
+  tabs:
+    output: true
+    sort_by: order
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
+      comments: true
+      toc: true
+      permalink: /posts/:title/
+  - scope:
+      path: _tabs
+      type: tabs
+    values:
+      layout: page
+      permalink: /:title/
+
+sass:
+  style: compressed
+
+compress_html:
+  clippings: all
+  comments: all
+  endings: all
+  profile: false
+  blanklines: false
+  ignore:
+    envs: [development]
+
+# Archives
+jekyll-archives:
+  enabled: [categories, tags]
+  layouts:
+    category: category
+    tag: tag
+  permalinks:
+    tag: /tags/:name/
+    category: /categories/:name/
 
 # Exclude
 exclude:
+  - "*.gem"
+  - "*.gemspec"
+  - docs
+  - tools
+  - README.md
+  - LICENSE
+  - "*.config.js"
+  - package*.json
   - Gemfile
   - Gemfile.lock
   - node_modules

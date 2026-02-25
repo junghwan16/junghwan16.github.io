@@ -1,8 +1,8 @@
 ---
-layout: single
 title: "OpenRTB BidRequest — 광고 요청 구조와 주요 객체"
 date: 2026-02-24 11:00:00 +0900
 categories: [ad-tech, openrtb]
+mermaid: true
 ---
 
 OpenRTB BidRequest는 SSP(Supply-Side Platform)가 DSP(Demand-Side Platform)에게 "지금 이 광고 지면이 경매에 나왔습니다"라고 알리는 요청 메시지다. 하나의 BidRequest 안에는 어떤 지면인지(Imp), 어떤 사이트/앱에서 왔는지(Site/App), 어떤 디바이스의 어떤 사용자인지(Device/User), 그리고 적용해야 할 규제(Regs)와 광고 공급망 정보(Source/SupplyChain)가 모두 담긴다.

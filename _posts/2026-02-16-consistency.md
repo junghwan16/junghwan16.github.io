@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "일관성(Consistency)이란 무엇인가"
 date: 2026-02-16 14:00:00 +0900
 categories: [backend, infrastructure]

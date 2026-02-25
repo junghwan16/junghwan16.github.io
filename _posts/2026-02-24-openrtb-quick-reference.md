@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "OpenRTB 2.6 Quick Reference Card"
 date: 2026-02-24 16:00:00 +0900
 categories: [ad-tech, openrtb]

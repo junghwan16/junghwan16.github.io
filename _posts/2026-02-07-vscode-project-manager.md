@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "VSCode Project Manager로 워크스페이스 간 빠른 이동하기"
 date: 2026-02-07 12:00:00 +0900
 categories: [tools, vscode]
