@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "gatewayRoutes는 무슨 설정인가: Helm values에서 Istio VirtualService까지"
 date: 2026-02-11 23:00:00 +0900
 categories: [infra, kubernetes]

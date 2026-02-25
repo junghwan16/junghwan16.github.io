@@ -1,8 +1,8 @@
 ---
-layout: single
 title: "OpenRTB BidResponse — 입찰 응답, SeatBid, adm, URL 생명주기"
 date: 2026-02-24 12:00:00 +0900
 categories: [ad-tech, openrtb]
+mermaid: true
 ---
 
 BidRequest가 "이런 광고 공간이 있어요"라는 안내문이라면, BidResponse는 "이 광고를 보여주고 싶어요, 이만큼 낼게요"라는 **입찰서**다. DSP(Demand-Side Platform)는 수십 밀리초 안에 입찰 여부를 결정하고, 이 입찰서를 SSP에 돌려보낸다.

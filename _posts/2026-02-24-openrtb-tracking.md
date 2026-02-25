@@ -1,8 +1,8 @@
 ---
-layout: single
 title: "OpenRTB 트래킹 완전 정리 — 누가, 언제, 어떤 URL을 호출하는가"
 date: 2026-02-24 13:00:00 +0900
 categories: [ad-tech, openrtb]
+mermaid: true
 ---
 
 OpenRTB 연동을 처음 시작할 때 가장 많이 헷갈리는 것이 "이 URL은 누가 호출하는가?"다. nurl, burl, VAST Impression, 트래킹 픽셀 — 이름은 비슷해 보이지만 호출 주체와 시점이 완전히 다르다. 이걸 잘못 이해하면 과금 누락, 중복 집계, 트래킹 실패가 생긴다.

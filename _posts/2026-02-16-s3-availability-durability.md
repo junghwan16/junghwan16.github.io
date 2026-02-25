@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "AWS S3에서 9 세어 보기 — 가용성과 내구성의 차이"
 date: 2026-02-16 13:00:00 +0900
 categories: [backend, infrastructure]

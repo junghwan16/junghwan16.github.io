@@ -1,8 +1,8 @@
 ---
-layout: single
 title: "가용성(Availability)이란 무엇인가"
 date: 2026-02-16 12:00:00 +0900
 categories: [backend, infrastructure]
+math: true
 ---
 
 컴퓨터 과학에서 가용성(Availability)이란 **시스템이 필요할 때 정상적으로 동작하고 접근 가능한 상태에 있는 정도**를 의미한다.

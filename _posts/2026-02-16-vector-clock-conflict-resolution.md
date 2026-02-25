@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "벡터 클럭과 버전 충돌 해결"
 date: 2026-02-16 18:00:00 +0900
 categories: [backend, infrastructure]

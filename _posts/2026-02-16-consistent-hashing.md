@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "안정 해싱(Consistent Hashing)과 Virtual Node"
 date: 2026-02-16 16:00:00 +0900
 categories: [backend, infrastructure]

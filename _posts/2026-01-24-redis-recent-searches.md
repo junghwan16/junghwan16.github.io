@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "최근 검색 기록, Redis로 어떻게 구현할까"
 date: 2026-01-24 19:00:00 +0900
 categories: [backend, redis]

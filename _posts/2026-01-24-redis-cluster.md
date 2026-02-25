@@ -1,5 +1,4 @@
 ---
-layout: single
 title: "Redis 클러스터, 언제 도입하고 어떻게 운영할까"
 date: 2026-01-24 12:00:00 +0900
 categories: [backend, redis]
