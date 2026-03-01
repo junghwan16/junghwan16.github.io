@@ -167,7 +167,7 @@ Dynamo에서는 서비스마다 N, R, W 파라미터를 조정할 수 있다.
 - **W** — 쓰기 성공에 필요한 최소 응답 노드 수
 - **R** — 읽기 성공에 필요한 최소 응답 노드 수
 
-이 값들의 관계가 [일관성](/backend/infrastructure/consistency/)과 [가용성](/backend/infrastructure/availability/)의 균형을 결정한다.
+이 값들의 관계가 일관성과 가용성의 균형을 결정한다.
 
 **R + W > N**이면 읽기 노드 집합과 쓰기 노드 집합이 반드시 겹친다.
 

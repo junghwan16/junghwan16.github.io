@@ -86,8 +86,32 @@ PUT 요청
 
 ---
 
+## SLA, SLO, SLI — 서비스 수준의 약속
+
+클라우드 서비스의 가용성과 내구성은 **SLA(Service Level Agreement)**로 계약된다.
+
+| 용어 | 의미 | 예시 |
+|------|------|------|
+| **SLI** | 실제 측정값 | 가용성 99.92% |
+| **SLO** | 내부 목표 | 99.95% 이상 유지 |
+| **SLA** | 고객과 계약한 최소 보장치 | 99.9% 이상 보장 |
+
+보통 **SLO > SLA**로 설정하여, SLA 위반 직전에 알람이 울리도록 여유 버퍼를 둔다.
+
+SLA를 위반하면 보상이 발생한다. AWS EC2의 예시:
+
+| 월간 가용성 | 서비스 크레딧 |
+|---|---|
+| 99.99% 미만 ~ 99.0% 이상 | 10% |
+| 99.0% 미만 ~ 95.0% 이상 | 30% |
+| 95.0% 미만 | 100% |
+
+---
+
 ## 참고자료
 
 - [Amazon S3 Storage Classes](https://aws.amazon.com/s3/storage-classes/) — S3 스토리지 클래스별 가용성·내구성 스펙
 - [Amazon S3 FAQs](https://aws.amazon.com/s3/faqs/) — S3 내구성 11 Nines에 대한 공식 설명
 - [Summary of the Amazon S3 Service Disruption](https://aws.amazon.com/message/41926/) — 2017년 S3 장애 사후 분석 (AWS 공식)
+- [Amazon Compute Service Level Agreement](https://aws.amazon.com/compute/sla/) — AWS EC2 SLA 원문
+- [Google Cloud - SLIs, SLOs, SLAs](https://cloud.google.com/blog/products/devops-sre/sre-fundamentals-slis-slas-and-slos) — SLI/SLO/SLA 개념 정리 (Google SRE)
