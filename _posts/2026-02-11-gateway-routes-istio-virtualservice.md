@@ -195,14 +195,3 @@ http:
 
 프로덕션 환경에서 소수의 트래픽에만 장애를 주입해서, 서비스가 타임아웃이나 에러를 제대로 처리하는지 검증할 수 있다.
 
----
-
-## 정리
-
-| 개념 | 설명 |
-|------|------|
-| **gatewayRoutes** | Helm values에서 라우팅 규칙을 선언하는 설정 |
-| **VirtualService** | gatewayRoutes로부터 생성되는 Istio 리소스. 실제 트래픽 라우팅을 담당 |
-| **Istio Ingress Gateway** | 외부 트래픽의 진입점. VirtualService 규칙에 따라 내부 서비스로 분배 |
-
-결국 `gatewayRoutes`는 **"외부에서 들어오는 요청을 어떤 Host/Path 조건으로 매칭해서 어떤 내부 서비스로 보낼 것인가"**를 정의하는 설정이며, 이 값들이 Helm을 통해 Istio VirtualService로 변환되어 실제 라우팅에 적용된다.

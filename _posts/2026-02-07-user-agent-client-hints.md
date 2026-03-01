@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "User Agent Client Hints에 대해 알아보자"
+title: "User-Agent 축소가 광고 시스템에 미치는 영향"
 date: 2026-02-07 14:00:00 +0900
 categories: [frontend, web]
 ---
@@ -24,122 +24,7 @@ Chrome은 이 문자열을 점진적으로 축소(User-Agent Reduction)하고, �
 
 ## Low-Entropy vs High-Entropy
 
-### Low-Entropy (자동 제공)
-
-별도 요청 없이 항상 접근 가능. Chrome 89부터 매 요청에 자동 포함된다.
-
-| HTTP 헤더            | JS 필드    | 설명                   | 예시                      |
-| -------------------- | ---------- | ---------------------- | ------------------------- |
-| `Sec-CH-UA`          | `brands`   | 브라우저 + 메이저 버전 | `"Google Chrome";v="123"` |
-| `Sec-CH-UA-Mobile`   | `mobile`   | 모바일 여부            | `?0`                      |
-| `Sec-CH-UA-Platform` | `platform` | OS 이름                | `"macOS"`                 |
-
-> `Sec-` 접두사는 JavaScript로 위조할 수 없는 forbidden header임을 의미한다.
-
-Console에서 확인:
-
-```javascript
-console.log(navigator.userAgentData);
-// { brands: [{brand: "Google Chrome", version: "123"}, ...], mobile: false, platform: "macOS" }
-```
-
-`brands`에 `"Not:A-Brand"` 같은 항목이 섞여 있는 이유는, 기존 UA 파싱 코드가 이 값을 그대로 파싱하지 못하도록 의도적으로 넣은 GREASE 메커니즘이다.
-
-### High-Entropy (요청 필요)
-
-명시적으로 요청해야 받을 수 있다. 브라우저가 **거부할 수도 있다**.
-
-| HTTP 헤더                     | JS 필드           | 설명                        | 예시              |
-| ----------------------------- | ----------------- | --------------------------- | ----------------- |
-| `Sec-CH-UA-Full-Version-List` | `fullVersionList` | 브라우저 정확한 버전        | `"123.0.6312.58"` |
-| `Sec-CH-UA-Platform-Version`  | `platformVersion` | OS 버전                     | `"14.4.0"`        |
-| `Sec-CH-UA-Arch`              | `architecture`    | CPU 아키텍처                | `"arm"`           |
-| `Sec-CH-UA-Bitness`           | `bitness`         | 32/64비트                   | `"64"`            |
-| `Sec-CH-UA-Model`             | `model`           | 기기 모델                   | `"Pixel 7"`       |
-| `Sec-CH-UA-WoW64`             | `wow64`           | 64비트 OS + 32비트 브라우저 | `false`           |
-| `Sec-CH-UA-Form-Factors`      | `formFactors`     | 폼 팩터                     | `["Tablet"]`      |
-
-Console에서 확인 (`getHighEntropyValues()`는 Promise를 반환한다):
-
-```javascript
-const ua = await navigator.userAgentData.getHighEntropyValues([
-  "architecture",
-  "bitness",
-  "model",
-  "platformVersion",
-  "fullVersionList",
-]);
-console.log(ua);
-```
-
----
-
-## 서버에서 High-Entropy 요청하기
-
-### Accept-CH 헤더
-
-```http
-HTTP/1.1 200 OK
-Accept-CH: Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version, Sec-CH-UA-Arch
-```
-
-`Accept-CH`는 첫 번째 응답에 포함되므로, 추가 힌트는 **두 번째 요청부터** 전송된다.
-
-### Critical-CH (첫 요청부터 받기)
-
-```http
-HTTP/1.1 200 OK
-Accept-CH: Sec-CH-UA-Arch, Sec-CH-UA-Bitness
-Critical-CH: Sec-CH-UA-Arch, Sec-CH-UA-Bitness
-```
-
-`Critical-CH`에 명시된 헤더가 원래 요청에 없었다면, 브라우저가 해당 헤더를 포함하여 **요청을 자동 재전송**한다.
-
-### meta 태그
-
-서버 설정을 변경할 수 없는 경우:
-
-```html
-<meta
-  http-equiv="Accept-CH"
-  content="Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version"
-/>
-```
-
-단, meta 태그 힌트는 **해당 페이지의 하위 리소스 요청**에만 적용된다. 페이지 내비게이션에는 적용되지 않는다.
-
----
-
-## Cross-Origin 요청에서의 Client Hints
-
-기본적으로 Client Hints는 **same-origin** 요청에만 전송된다. 다른 출처에도 전송하려면 `Permissions-Policy`를 설정해야 한다.
-
-```http
-Accept-CH: Sec-CH-UA-Platform-Version
-Permissions-Policy: ch-ua-platform-version=(self "https://cdn.example.com")
-```
-
-디렉티브 이름 규칙: `Sec-CH-UA-Platform-Version` -> `ch-ua-platform-version` (소문자 변환)
-
----
-
-## 활용 예시: Windows 버전 구분
-
-기존 UA 문자열에서는 Windows 10과 11 모두 `Windows NT 10.0`으로 표시되어 구분이 불가능했다. UA-CH의 `platformVersion`으로 구분할 수 있다.
-
-```javascript
-const ua = await navigator.userAgentData.getHighEntropyValues([
-  "platformVersion",
-]);
-const major = parseInt(ua.platformVersion.split(".")[0]);
-
-if (ua.platform === "Windows") {
-  if (major >= 13) console.log("Windows 11 이상");
-  else if (major > 0)
-    console.log("Windows 10"); // 1~12는 Windows 10
-  else console.log("Windows 10 이전"); // 0은 Windows 10 이전
-}
-```
+UA-CH 정보는 두 가지로 구분된다. **Low-entropy** 힌트(`Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`)는 매 요청에 자동으로 포함되며, 브라우저 브랜드·메이저 버전·OS 이름·모바일 여부 정도만 담는다. **High-entropy** 힌트는 OS 세부 버전, CPU 아키텍처, 기기 모델 등 식별력이 높은 정보로, 서버가 `Accept-CH` 헤더로 명시적으로 요청하거나 클라이언트가 `getHighEntropyValues()`를 직접 호출해야 받을 수 있다.
 
 ---
 
@@ -240,11 +125,9 @@ Firefox와 Safari는 UA 문자열을 축소하는 자체 방식을 택했지만,
 
 ## 핵심 요약
 
-1. **HTTPS 필수** - Client Hints는 보안 연결에서만 동작한다.
-2. **Low-entropy는 자동** - `brands`, `mobile`, `platform`은 매 요청에 자동 포함된다.
-3. **High-entropy는 요청 필요** - 서버는 `Accept-CH`, 클라이언트는 `getHighEntropyValues()`로 요청한다.
-4. **브라우저가 거부할 수 있다** - 기존 User-Agent와 달리 브라우저가 정보 제공을 거부할 수 있다.
-5. **Chromium 전용** - 현재 Firefox, Safari는 미지원이다.
+1. **Chromium 전용** - Firefox, Safari는 UA-CH를 구현하지 않는다. 이 두 브라우저에서는 기존 UA 문자열 파싱에 의존해야 한다.
+2. **광고 시스템은 `device.sua`로 대응** - OpenRTB 2.6의 `sua` 필드가 축소된 UA 문자열을 대체한다. 비더는 `ua`보다 `sua`를 우선 사용해야 한다.
+3. **Prebid.js에서는 `uaHints` 설정 하나** - 퍼블리셔가 `uaHints` 배열을 설정하면 Prebid.js가 high-entropy 수집과 `device.sua` 변환을 모두 처리한다. 서버 헤더 설정은 불필요하다.
 
 ---
 
