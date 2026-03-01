@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "외부 업체에 API를 열어줄 때, 요청이 조작되지 않았음을 어떻게 보장할까"
+title: "HMAC으로 API 요청 위변조를 막는 법"
 date: 2026-03-01 18:00:00 +0900
 categories: [backend, security]
 ---
@@ -155,6 +155,67 @@ func HMACMiddleware(secret []byte) func(http.Handler) http.Handler {
     }
 }
 ```
+
+---
+
+## 실제 서비스들은 어떻게 쓰고 있나
+
+앞서 "업계 표준"이라고 했는데, 실제로 어떤 구조인지 비교해 보자.
+
+| 서비스 | 서명 헤더 | 서명 포맷 | 타임스탬프 | 리플레이 방지 |
+|---|---|---|---|---|
+| Stripe | `Stripe-Signature` | `t={ts},v1={sig}` | 헤더에 포함 | 5분 권장 |
+| GitHub | `X-Hub-Signature-256` | `sha256={sig}` | 없음 | 없음 (별도 처리 필요) |
+| Slack | `X-Slack-Signature` | `v0={sig}` | `X-Slack-Request-Timestamp` | 5분 |
+
+같은 HMAC-SHA256이지만 세부 프로토콜은 서비스마다 다르다. 몇 가지 주목할 점을 짚어 보자.
+
+### Stripe: 가장 정교한 설계
+
+Stripe는 서명 헤더 하나에 타임스탬프와 서명을 함께 넣는다:
+
+```
+Stripe-Signature: t=1614556828,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
+```
+
+서명 대상은 `{timestamp}.{raw_body}` 형태다. 타임스탬프를 서명에 포함시키므로 공격자가 타임스탬프만 바꿔서 리플레이하는 것도 불가능하다.
+
+```go
+// Stripe 방식 검증
+payload := fmt.Sprintf("%s.%s", timestamp, rawBody)
+expectedSig := generateHMAC(endpointSecret, []byte(payload))
+```
+
+Stripe는 또한 키 로테이션을 위해 `v1` 외에 `v2` 등 **여러 버전의 서명을 동시에 보낼 수 있다.** 수신 측은 하나라도 일치하면 통과시키면 된다.
+
+### GitHub: 단순하지만 타임스탬프 없음
+
+GitHub는 `sha256=` 접두사 뒤에 서명을 붙이는 가장 단순한 형태다:
+
+```
+X-Hub-Signature-256: sha256=d57c68ca6f92289e6987922ff26938930f6e66a2d161ef06abdf1859230aa23c
+```
+
+서명 대상은 요청 본문 전체다. **타임스탬프가 없으므로 리플레이 공격에 별도 대응이 필요하다.** GitHub은 이를 `X-GitHub-Delivery` (고유 ID)로 보완한다. 수신 측에서 이 ID를 저장하고 중복 요청을 거부하는 식이다.
+
+### Slack: 버전 접두사로 확장성 확보
+
+Slack은 서명 대상을 명시적으로 조립한다:
+
+```
+서명 대상 = "v0:" + timestamp + ":" + raw_body
+서명 = "v0=" + HMAC-SHA256(signing_secret, 서명 대상)
+```
+
+`v0` 접두사는 서명 알고리즘의 버전이다. 나중에 알고리즘을 바꿔야 할 때 `v1`으로 올리면 하위 호환을 유지하면서 전환할 수 있다.
+
+### 공통 패턴
+
+세 서비스 모두 다르지만, 공통점이 있다:
+
+1. **반드시 raw body로 검증한다.** JSON 파싱 후 재직렬화하면 공백이나 키 순서가 바뀌어 서명이 깨진다. 프레임워크가 자동으로 body를 파싱하기 전에 원본을 캡처해야 한다.
+2. **constant-time 비교를 쓴다.** Stripe은 `secure_compare`, GitHub은 `timingSafeEqual`, Slack도 동일한 방식을 권장한다.
+3. **서명 키는 엔드포인트별로 다르다.** 하나의 키가 유출되어도 다른 연동에는 영향이 없다.
 
 ---
 
