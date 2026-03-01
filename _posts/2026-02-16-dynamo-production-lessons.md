@@ -7,7 +7,7 @@ categories: [backend, infrastructure]
 
 Dynamo 논문의 후반부에는 실제 Amazon 프로덕션 환경에서 운영하며 얻은 교훈이 담겨 있다. 이론이 아니라 실측 데이터에 기반한 내용이라 실용적이다.
 
-Dynamo는 분산 key-value 저장소로, "항상 쓰기 가능(Always Writeable)"을 핵심 원칙으로 삼는다. [안정 해싱](/backend/infrastructure/consistent-hashing/)으로 데이터를 분산하고, 벡터 클럭으로 버전 충돌을 추적하며, 느슨한 정족수(Sloppy Quorum)로 장애 상황에서도 쓰기를 성공시킨다.
+Dynamo는 분산 key-value 저장소로, "항상 쓰기 가능(Always Writeable)"을 핵심 원칙으로 삼는다. 안정 해싱(Consistent Hashing)으로 데이터를 분산하고, 벡터 클럭으로 버전 충돌을 추적하며, 느슨한 정족수(Sloppy Quorum)로 장애 상황에서도 쓰기를 성공시킨다.
 
 ---
 
@@ -70,7 +70,7 @@ Client (파티션 인식 라이브러리) → 담당 노드 (직접)
 
 ### 균일한 부하 분산
 
-트래픽이 적을수록 핫키 수가 줄어서 특정 노드에 부하가 몰리고, 트래픽이 많을수록 핫키가 분산돼 평균화된다. [안정 해싱](/backend/infrastructure/consistent-hashing/)의 Virtual Node 수를 조절하여 부하 분산을 최적화한다.
+트래픽이 적을수록 핫키 수가 줄어서 특정 노드에 부하가 몰리고, 트래픽이 많을수록 핫키가 분산돼 평균화된다. 안정 해싱(Consistent Hashing)의 Virtual Node 수를 조절하여 부하 분산을 최적화한다.
 
 ### 승인 제어(Admission Control)
 

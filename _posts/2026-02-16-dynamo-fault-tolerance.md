@@ -7,7 +7,7 @@ categories: [backend, infrastructure]
 
 분산 시스템에서 장애는 예외가 아니라 일상이다. 디스크가 고장 나고, 네트워크가 끊기고, 서버가 재시작된다.
 
-Amazon Dynamo는 2007년에 발표된 분산 key-value 저장소로, "항상 쓰기 가능(Always Writeable)"을 핵심 원칙으로 삼는다. 데이터는 [안정 해싱(Consistent Hashing)](/backend/infrastructure/consistent-hashing/)을 통해 링 구조로 배치된 노드들에 분산되며, 각 키는 N개 노드에 복제된다. 이 N개 노드 목록을 **선호 목록(Preference List)**이라 한다. 읽기/쓰기 성공에 필요한 최소 응답 수를 각각 R, W로 정의한다.
+Amazon Dynamo는 2007년에 발표된 분산 key-value 저장소로, "항상 쓰기 가능(Always Writeable)"을 핵심 원칙으로 삼는다. 데이터는 안정 해싱(Consistent Hashing)을 통해 링 구조로 배치된 노드들에 분산되며, 각 키는 N개 노드에 복제된다. 이 N개 노드 목록을 **선호 목록(Preference List)**이라 한다. 읽기/쓰기 성공에 필요한 최소 응답 수를 각각 R, W로 정의한다.
 
 이 글에서는 Dynamo가 노드 장애 상황에서도 서비스를 멈추지 않기 위해 사용하는 기법들을 다룬다.
 
@@ -181,7 +181,7 @@ Dynamo는 노드 추가/제거를 관리자가 명시적으로 수행한다. 하
 
 ### 노드 추가 시
 
-새 노드 X가 추가되면 링 위의 토큰(위치)을 배정받고, 해당 키 범위를 기존 노드들이 X에게 전송한다. [안정 해싱](/backend/infrastructure/consistent-hashing/)의 장점으로, 전체 키가 아니라 X가 맡게 될 일부 키만 이동한다.
+새 노드 X가 추가되면 링 위의 토큰(위치)을 배정받고, 해당 키 범위를 기존 노드들이 X에게 전송한다. 안정 해싱(Consistent Hashing)의 장점으로, 전체 키가 아니라 X가 맡게 될 일부 키만 이동한다.
 
 ---
 
