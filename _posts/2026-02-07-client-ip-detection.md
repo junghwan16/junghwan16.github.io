@@ -5,102 +5,58 @@ date: 2026-02-07 13:00:00 +0900
 categories: [backend, network]
 ---
 
-서버 개발을 하다보면 클라이언트의 IP를 알아야할 때가 있다.
+서버 개발을 하다보면 클라이언트의 IP를 알아야할 때가 있다. TCP 연결 자체가 IP 기반이니 쉬울 것 같지만, 프로덕션 환경은 여러 홉을 거치기 때문에 생각보다 간단하지 않다.
 
-간단하게 생각하면 L4 레이어의 TCP 연결 자체가 IP 기반이기 때문에 쉽게 알 수 있을 것 같지만, 실제 네트워크 환경은 여러 홉을 거치기 때문에 진짜 유저의 IP를 얻는 건 생각보다 쉽지 않을 수 있다는 점을 인식해야 한다.
+두 가지 레이어로 나눠서 생각해야 한다:
 
-두 가지 레이어에서 생각을 분리해봐야 한다:
-
-- TCP 관점: "지금 내 서버 소켓에 연결한 상대(바로 앞 홉)의 IP"
-- HTTP 관점: "이 HTTP 요청을 '처음' 만든 원래 사용자(또는 원발신자)의 IP"
+- **TCP 관점**: 지금 내 서버 소켓에 연결한 상대(바로 앞 홉)의 IP
+- **HTTP 관점**: 이 HTTP 요청을 처음 만든 원래 사용자의 IP
 
 ---
 
-## 왜 광고 시스템에서 클라이언트 IP가 중요한가?
-
-광고 업계에 처음 들어오면 "IP 하나 가지고 뭘 그렇게 신경 쓰나" 싶을 수 있다. 하지만 광고 시스템에서 IP는 돈과 직결된다.
-
-| 용도 | IP가 틀리면 생기는 일 |
-|---|---|
-| **지역 타겟팅** — IP → 국가/도시 추정 → 해당 지역 광고 노출 | 서울 유저에게 부산 치킨집 광고가 뜸 |
-| **프리퀀시 캡핑** — 같은 유저에게 같은 광고를 N번 이상 안 보여주기 | 프록시 IP로 뭉쳐서 캡핑이 안 먹힘 |
-| **클릭 사기 탐지** — 같은 IP에서 비정상적 클릭 패턴 감지 | 사기꾼 IP를 못 잡거나, 정상 유저를 오판 |
-| **OpenRTB 입찰** — SSP → DSP 입찰 요청의 `device.ip` 필드에 유저 IP 포함 | DSP가 잘못된 IP로 입찰 → 광고주 예산 낭비 |
-
-```
-유저 브라우저 (IP: 203.0.113.50)
-       │
-       │  ① 광고 지면이 있는 웹페이지 로드
-       ▼
-  퍼블리셔 웹서버
-       │
-       │  ② 광고 슬롯에 대해 Ad Request 발생
-       ▼
-  SSP (Supply-Side Platform)          ← 여기서 유저 IP를 수집해야 함
-       │
-       │  ③ OpenRTB Bid Request (유저 IP 포함)
-       ▼
-  DSP (Demand-Side Platform)          ← 여기서 IP 기반으로 지역/사기 판단
-       │
-       │  ④ Bid Response (입찰가 결정)
-       ▼
-  SSP → 퍼블리셔 → 유저에게 광고 노출
-```
-
-SSP가 유저 IP를 잘못 수집하면 → DSP에 잘못된 IP가 전달되고 → 전체 입찰 판단이 틀어진다. **SSP 서버에서 정확한 클라이언트 IP를 추출하는 것**이 광고 파이프라인의 첫 번째 관문이다.
-
----
-
-## 1. TCP 관점: 서버가 "확실히" 아는 IP는 Peer 의 IP 뿐이다.
+## 1. TCP 관점: 서버가 확실히 아는 IP는 Peer의 IP 뿐이다
 
 > 패킷이 라우터/NAT를 거칠 때 L2/L3/L4 헤더가 각각 어떻게 바뀌는지는 [[패킷이 홉을 거칠 때 헤더는 어떻게 바뀌는가]] 참고.
 
-TCP 연결이 성립되면 서버는 커널로부터 "상대방" 주소를 받는다.
+TCP 연결이 성립되면 서버는 커널로부터 상대방 주소를 받는다. 3-way handshake가 완료되어야 데이터를 주고받을 수 있으므로 이 값은 신뢰할 수 있다. 하지만 여기서 "상대방"은 원래 사용자가 아니라 바로 앞에 있는 장비일 수 있다.
 
-- 이 값은 L4(전송계층) 레벨에서 신뢰할 수 있는 사실이다. TCP 3-way handshake가 완료되어야 데이터를 주고받을 수 있으므로, 공격자가 IP를 스푸핑하면 SYN-ACK를 받을 수 없어 연결 자체가 성립되지 않는다. (단, SYN Cookies 사용 시 ISN 예측 공격 등 예외적 시나리오가 존재하긴 한다)
-- 하지만 여기서의 "상대방"은 원래 사용자가 아니라 바로 앞에 있는 장비일 수 있다.
+유저와 서버가 직접 연결되면 peer IP = 유저 IP지만, **프로덕션 환경에서 이런 직접 연결은 거의 없다.**
 
-유저와 서버가 직접 연결되면 peer IP = 유저 IP라서 간단하지만, **현실에서 이런 직접 연결은 거의 없다.** 프로덕션 환경에는 항상 무언가가 중간에 끼어 있다.
-
-### L7 프록시(ALB, Nginx 등)를 거치면?
+### L7 프록시를 거치면?
 
 ```
 유저 (203.0.113.50)
     │
     │  TCP 연결 ①: src=203.0.113.50 → dst=ALB
     ▼
-AWS ALB (10.0.1.100)              ← ALB가 TCP 연결 ①을 종료(terminate)
+ALB (10.0.1.100)                  ← TCP 연결 ①을 종료(terminate)
     │
-    │  TCP 연결 ②: src=10.0.1.100 → dst=10.0.2.50  ← 새로운 TCP 연결!
+    │  TCP 연결 ②: src=10.0.1.100 → dst=10.0.2.50  ← 새로운 TCP 연결
     ▼
 내 서버 (10.0.2.50)
 
-서버가 보는 peer IP = 10.0.1.100 ❌ ALB의 내부 IP. 유저 IP가 아님!
+서버가 보는 peer IP = 10.0.1.100 ❌ (ALB의 내부 IP)
 ```
 
-1. 유저 `203.0.113.50`이 ALB에 TCP 연결을 맺음 (연결 ①)
-2. ALB는 이 연결을 받아서 **끊고**, 백엔드 서버에 **새로운** TCP 연결을 맺음 (연결 ②)
-3. 서버 입장에서는 연결 ②만 보이므로, peer IP는 ALB의 IP인 `10.0.1.100`
+L7 프록시(ALB, Nginx, HAProxy 등)는 클라이언트 연결을 받아서 끊고, 백엔드에 새로운 연결을 맺는다. 서버 입장에서 peer IP는 프록시의 IP이지 원래 클라이언트의 IP가 아니다.
 
-이것이 L7 프록시(ALB, Nginx, HAProxy 등)의 기본 동작이다. 연결을 "대리"하므로, TCP 레벨에서 원래 클라이언트 IP가 사라진다.
-
-> **참고: L4 로드밸런서(NLB)는 다르다** — AWS NLB는 인스턴스 타겟의 경우 기본적으로 클라이언트 IP를 보존한다(`preserve_client_ip.enabled` 속성). IP 타겟의 경우에도 TCP/UDP 프로토콜에서는 기본 활성화된다. 단, TLS 프로토콜 타겟에서는 기본 비활성화이고, TLS termination을 사용하거나 뒤에 L7 프록시를 두면 다시 같은 문제가 생긴다. 클라이언트 IP 보존이 불가능한 경우 Proxy Protocol v2를 대안으로 사용할 수 있다.
+> **L4 로드밸런서(NLB)는 다르다** — AWS NLB는 기본적으로 클라이언트 IP를 보존한다. 단, TLS termination을 사용하거나 뒤에 L7 프록시를 두면 다시 같은 문제가 생긴다. 클라이언트 IP 보존이 불가능한 경우 Proxy Protocol v2를 대안으로 사용할 수 있다.
 
 ---
 
-## 2. HTTP 관점: "원 IP"는 보통 **헤더**로 전달된다. (근데 스푸핑 가능)
+## 2. HTTP 관점: 원 IP는 헤더로 전달된다 (스푸핑 가능)
 
-TCP가 끊겨 다시 맺어지면, 원래 클라이언트 IP를 알려면 보통 HTTP 헤더를 쓴다.
+TCP 연결이 끊겨 다시 맺어지면, 원래 클라이언트 IP를 전달하기 위해 HTTP 헤더를 사용한다.
 
 ### 대표 헤더
 
-- `X-Forwarded-For` (XFF): 원래 Squid 캐싱 프록시에서 도입한 사실상 표준(de-facto standard) 헤더. 가장 널리 사용된다.
-- `Forwarded` ([RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239) 표준): XFF를 대체하기 위해 표준화된 헤더. `for`, `by`, `host`, `proto` 파라미터를 지원하여 더 구조화된 정보를 전달한다. (예: `Forwarded: for=192.0.2.60;proto=http;by=203.0.113.43`)
+- `X-Forwarded-For` (XFF): Squid 캐싱 프록시에서 도입한 사실상 표준. 가장 널리 사용된다.
+- `Forwarded` ([RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239)): XFF를 대체하기 위해 표준화된 헤더. `for`, `by`, `host`, `proto` 파라미터를 지원한다.
 - `X-Real-IP`: Nginx에서 주로 사용하는 비표준 헤더. 단일 IP만 담는다.
 
 ### X-Forwarded-For 동작 원리
 
-프록시가 하나면 XFF에 유저 IP 하나만 들어간다. 프록시가 여러 개일 때가 중요한데, 광고 시스템에서 흔한 CDN + ALB 구성을 보자:
+프록시가 여러 개일 때가 중요하다:
 
 ```
 유저 (203.0.113.50)
@@ -109,67 +65,59 @@ TCP가 끊겨 다시 맺어지면, 원래 클라이언트 IP를 알려면 보통
     ▼
 CloudFront (54.230.10.20)
     │
-    │  X-Forwarded-For: 203.0.113.50           ← CloudFront가 유저 IP 추가
+    │  X-Forwarded-For: 203.0.113.50           ← 유저 IP 추가
     ▼
 ALB (10.0.1.100)
     │
-    │  X-Forwarded-For: 203.0.113.50, 54.230.10.20  ← ALB가 CloudFront IP를 append
+    │  X-Forwarded-For: 203.0.113.50, 54.230.10.20  ← CloudFront IP를 append
     ▼
-내 서버 (10.0.2.50)
-
-서버가 읽는 값:
-  peer IP (RemoteAddr)  = 10.0.1.100
-  X-Forwarded-For       = "203.0.113.50, 54.230.10.20"
-                            ↑ 유저 IP       ↑ CloudFront IP
+내 서버
 
 XFF 체인: client, proxy1, proxy2, ...
           ←── 오래된 순서 ──→ 최근 순서
 ```
 
-### 보안 함정: 헤더는 "클라이언트가 마음대로 보낼 수 있다"
+### 보안 함정: 클라이언트가 헤더를 조작할 수 있다
 
-[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 강조하는 가장 중요한 부분이다:
+[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 강조하는 핵심이다:
 
 ```
 악의적 유저 (198.51.100.99)
     │
-    │  X-Forwarded-For: 1.2.3.4             ← 공격자가 직접 넣은 가짜 IP!
+    │  X-Forwarded-For: 1.2.3.4             ← 가짜 IP!
     ▼
 ALB (10.0.1.100)
     │
-    │  X-Forwarded-For: 1.2.3.4, 198.51.100.99  ← ALB는 기존 값에 실제 peer IP를 append
+    │  X-Forwarded-For: 1.2.3.4, 198.51.100.99  ← ALB는 실제 peer IP를 append
     ▼
 내 서버
 
-만약 "XFF의 첫 번째 값"을 쓰면?  → 1.2.3.4 ❌ 가짜!
-"오른쪽에서부터 신뢰할 수 있는 프록시를 제외"하면?  → 198.51.100.99 ✅
+XFF 첫 번째 값을 쓰면?  → 1.2.3.4 ❌ 가짜!
+오른쪽에서 신뢰할 수 있는 프록시를 제외하면?  → 198.51.100.99 ✅
 ```
 
-**광고에서 이게 왜 위험한가?** 공격자가 `X-Forwarded-For: 미국_IP`를 넣으면 → 서버가 미국 유저로 판단 → CPM이 높은 미국 타겟 광고를 노출 → 실제로는 CPM이 낮은 지역인데 비싼 광고를 소진 → 광고주 예산 낭비 = 사기(fraud)
+원칙:
+1. 내가 신뢰하는 프록시가 붙인 구간만 신뢰한다
+2. 그 이전 값은 조작 가능하다고 가정한다
 
-그래서 원칙은:
-
-1. "내가 신뢰하는 프록시/로드밸랜서가 붙인 구간"만 신뢰한다
-2. 그 이전에 이미 들어있던 XFF 값은 그 프록시 정책에 따라 보존/추가/제거해야 한다
-
-AWS ALB는 `routing.http.xff_header_processing.mode` 속성으로 이를 제어한다(`append`/`preserve`/`remove`). 기본값은 `append`로, 기존 XFF 값 뒤에 직전 홉의 IP를 추가한다.
+AWS ALB는 `routing.http.xff_header_processing.mode`로 XFF 처리 방식을 제어한다(`append`/`preserve`/`remove`).
 
 ---
 
-## 3. 올바르게 클라이언트 IP 추출하기: 실전 코드
+## 3. 올바르게 클라이언트 IP 추출하기
 
-### 주의: XFF 헤더가 여러 개일 수 있다
+### XFF 헤더가 여러 개일 수 있다
 
-MDN 문서에 따르면, 하나의 요청에 `X-Forwarded-For` 헤더가 **여러 개** 존재할 수 있다. 이 경우 모든 헤더의 IP를 하나의 리스트로 합쳐서 처리해야 한다.
+하나의 요청에 `X-Forwarded-For` 헤더가 여러 개 존재할 수 있다. 모든 헤더의 IP를 하나의 리스트로 합쳐서 처리해야 한다.
 
 ```
 X-Forwarded-For: 203.0.113.50, 54.230.10.20
 X-Forwarded-For: 10.0.1.100
 
-→ 하나의 리스트로 합침: [203.0.113.50, 54.230.10.20, 10.0.1.100]
+→ [203.0.113.50, 54.230.10.20, 10.0.1.100]
 ```
 
-### 원칙: "오른쪽에서부터 신뢰할 수 있는 홉을 제거"
+### 원칙: 오른쪽에서부터 신뢰할 수 있는 홉을 제거
 
 ```
 X-Forwarded-For: <client?>, <proxy1?>, ..., <trusted_N>, <trusted_N-1>
@@ -177,19 +125,18 @@ X-Forwarded-For: <client?>, <proxy1?>, ..., <trusted_N>, <trusted_N-1>
 
 1. XFF를 쉼표로 split
 2. 오른쪽 끝부터 시작
-3. 내가 아는 신뢰할 수 있는 프록시 IP인 동안 제거
+3. 신뢰할 수 있는 프록시 IP인 동안 제거
 4. 처음 만나는 "신뢰할 수 없는" IP = 클라이언트 IP
 ```
 
 ### Go 예제
 
 ```go
-// 신뢰할 수 있는 프록시 대역 (예: AWS 내부 + CloudFront)
 var trustedProxies = []net.IPNet{
-    parseCIDR("10.0.0.0/8"),       // AWS VPC 내부
-    parseCIDR("172.16.0.0/12"),    // Private
-    parseCIDR("192.168.0.0/16"),   // Private
-    parseCIDR("54.230.0.0/16"),    // CloudFront (예시, 실제로는 https://ip-ranges.amazonaws.com/ip-ranges.json 참조)
+    parseCIDR("10.0.0.0/8"),
+    parseCIDR("172.16.0.0/12"),
+    parseCIDR("192.168.0.0/16"),
+    parseCIDR("54.230.0.0/16"), // CloudFront (예시)
 }
 
 func isTrustedProxy(ip string) bool {
@@ -218,9 +165,6 @@ func ClientIP(r *http.Request) string {
     }
 
     // 오른쪽부터 신뢰할 수 있는 프록시 제거
-    //   예: ["1.2.3.4", "203.0.113.50", "54.230.10.20", "10.0.1.100"]
-    //         가짜       진짜 유저        CloudFront(✓)   ALB(✓)
-    //   → 오른쪽부터 trusted 제거 → 203.0.113.50이 클라이언트!
     for i := len(parts) - 1; i >= 0; i-- {
         if !isTrustedProxy(parts[i]) {
             return parts[i]
@@ -232,27 +176,25 @@ func ClientIP(r *http.Request) string {
 }
 ```
 
-> **프레임워크 내장 기능**: Express.js는 `app.set('trust proxy', '10.0.0.0/8, 54.230.0.0/16')` 처럼 CIDR 목록을 설정하면, 내부적으로 [proxy-addr](https://www.npmjs.com/package/proxy-addr) 패키지를 사용하여 오른쪽에서부터 신뢰 프록시를 제거하는 동일한 로직을 적용한다. `req.ip`가 최종 클라이언트 IP를 반환한다. Nginx는 `proxy_set_header X-Real-IP $remote_addr`와 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`를 조합하여 사용하고, 백엔드에서는 `ngx_http_realip_module`의 `set_real_ip_from`, `real_ip_header` 디렉티브로 신뢰 프록시를 지정할 수 있다.
+> **프레임워크 지원**: Express.js는 `trust proxy` 설정으로 동일한 로직을 내장하고 있고(`req.ip`가 최종 클라이언트 IP를 반환), Nginx는 `ngx_http_realip_module`의 `set_real_ip_from` 디렉티브로 신뢰 프록시를 지정할 수 있다.
 
 ---
 
-## 4. 광고 업계 특수 상황: IP만으로는 부족한 경우들
+## 4. IP만으로는 부족한 경우
 
-### Carrier-Grade NAT (CGNAT)
+### CGNAT (Carrier-Grade NAT)
 
 ```
-유저 A (내부: 100.64.0.1)  ─┐
-                              ├── 통신사 NAT ── 공인 IP: 203.0.113.1
-유저 B (내부: 100.64.0.2)  ─┘
-
-유저 A와 B가 같은 IP(203.0.113.1)로 보임!
+유저 A (100.64.0.1) ─┐
+                      ├── 통신사 NAT ── 공인 IP: 203.0.113.1
+유저 B (100.64.0.2) ─┘
 ```
 
-모바일 통신사는 IPv4 주소 고갈 문제를 해결하기 위해 CGNAT를 사용한다. [RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598)에서 정의한 `100.64.0.0/10` 대역(Shared Address Space)을 ISP 내부에서 사용하고, 이를 소수의 공인 IP로 변환한다. 수천 명의 유저가 같은 공인 IP를 공유할 수 있어서 IP 기반 프리퀀시 캡핑/유저 식별이 사실상 불가능하다. 광고 업계에서는 IP + User-Agent + 기타 시그널을 조합하거나, 디바이스 ID(ADID/IDFA)를 병행한다.
+모바일 통신사는 IPv4 주소 고갈로 CGNAT([RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598))를 사용한다. 수천 명이 같은 공인 IP를 공유할 수 있어서, IP만으로 개별 사용자를 식별하는 것은 불가능하다.
 
 ### VPN / 프록시 사용자
 
-한국 유저가 미국 VPN을 타면 서버는 미국 IP를 보게 된다. → 미국 타겟 광고가 잘못 노출된다. VPN 탐지를 위해 IP 평판 데이터베이스(MaxMind, IPQualityScore 등)를 활용하는 경우가 많다.
+VPN을 사용하면 서버는 VPN 서버의 IP를 보게 된다. 사용자의 실제 위치와 무관한 IP가 전달된다.
 
 ### IPv6
 
@@ -270,17 +212,15 @@ host, _, _ := net.SplitHostPort(remoteAddr)
 
 ---
 
-## 체크리스트: 새 광고 서버를 세팅할 때
+## 체크리스트
 
 ```
-□ 내 서버 앞에 어떤 프록시/로드밸런서가 있는지 인프라 팀에 확인
-□ 각 프록시가 XFF를 어떻게 처리하는지 확인 (append? overwrite? 무시?)
-□ 신뢰할 수 있는 프록시의 IP 대역(CIDR) 목록 확보
-□ "오른쪽에서 벗기기" 로직으로 클라이언트 IP 추출 구현
-□ IPv6 주소도 올바르게 파싱되는지 테스트
-□ XFF 스푸핑 테스트 (가짜 XFF를 넣어보고 올바른 IP가 나오는지)
-□ IP 기반 Geo DB(MaxMind GeoIP2 등)와 연동 테스트
-□ CGNAT/VPN 상황에서의 fallback 전략 수립 (디바이스 ID 병행 등)
+□ 서버 앞에 어떤 프록시/로드밸런서가 있는지 확인
+□ 각 프록시의 XFF 처리 방식 확인 (append? overwrite?)
+□ 신뢰할 수 있는 프록시의 CIDR 목록 확보
+□ 오른쪽에서 벗기기 로직으로 클라이언트 IP 추출 구현
+□ IPv6 주소 파싱 테스트
+□ XFF 스푸핑 테스트
 ```
 
 ---
@@ -299,25 +239,22 @@ host, _, _ := net.SplitHostPort(remoteAddr)
                 │       │
                 │       ├── 첫 번째 값을 그냥 쓰면? → ❌ 스푸핑 위험
                 │       │
-                │       └── 오른쪽부터 trusted proxy 제거 → ✅ 올바른 IP
+                │       └── 오른쪽부터 trusted proxy 제거 → ✅
                 │
-                └── 그래도 부족한 경우
+                └── IP만으로 부족한 경우
                         ├── CGNAT: 여러 유저가 같은 IP
-                        ├── VPN: 유저 위치 불일치
-                        └── → IP + 다른 시그널 조합 필요
+                        ├── VPN: 위치 불일치
+                        └── → 다른 시그널과 조합 필요
 ```
 
 ---
 
 ## 참고자료
 
-- [MDN - X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For) — XFF 헤더의 동작, 파싱, 보안 주의사항, IP 선택 방법에 대한 가장 체계적인 레퍼런스
-- [RFC 7239 - Forwarded HTTP Extension](https://datatracker.ietf.org/doc/html/rfc7239) — X-Forwarded-For를 대체하기 위한 표준 Forwarded 헤더 명세
-- [RFC 6598 - IANA-Reserved IPv4 Prefix for Shared Address Space](https://datatracker.ietf.org/doc/html/rfc6598) — CGNAT에서 사용하는 100.64.0.0/10 대역 정의
-- [AWS - HTTP headers and Application Load Balancers](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html) — ALB의 XFF 헤더 처리 모드(append/preserve/remove) 공식 문서
-- [AWS - Network Load Balancer Target Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html) — NLB의 클라이언트 IP 보존 동작 및 Proxy Protocol 설정
-- [AWS - CloudFront IP Ranges](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html) — CloudFront 엣지 서버 IP 대역 확인 방법 (ip-ranges.json)
-- [IAB - OpenRTB 2.6 Specification](https://github.com/InteractiveAdvertisingBureau/openrtb2.x/blob/main/2.6.md) — OpenRTB 입찰 요청의 device.ip 필드 명세
-- [Express.js - Behind Proxies](https://expressjs.com/en/guide/behind-proxies.html) — Express의 trust proxy 설정과 req.ip 동작
-- [Nginx - ngx_http_realip_module](https://nginx.org/en/docs/http/ngx_http_realip_module.html) — Nginx에서 실제 클라이언트 IP를 추출하기 위한 모듈
-- [HTTP Toolkit - What is X-Forwarded-For and when can you trust it?](https://httptoolkit.com/blog/what-is-x-forwarded-for/) — XFF 신뢰 문제와 오른쪽에서부터 벗기기 접근법에 대한 실용적 해설
+- [MDN - X-Forwarded-For](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For) — XFF 헤더의 동작, 보안 주의사항
+- [RFC 7239 - Forwarded HTTP Extension](https://datatracker.ietf.org/doc/html/rfc7239) — 표준 Forwarded 헤더 명세
+- [RFC 6598 - Shared Address Space](https://datatracker.ietf.org/doc/html/rfc6598) — CGNAT 100.64.0.0/10 대역 정의
+- [AWS - ALB HTTP Headers](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html) — ALB의 XFF 처리 모드
+- [AWS - NLB Target Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html) — NLB 클라이언트 IP 보존
+- [Express.js - Behind Proxies](https://expressjs.com/en/guide/behind-proxies.html) — Express trust proxy 설정
+- [Nginx - ngx_http_realip_module](https://nginx.org/en/docs/http/ngx_http_realip_module.html) — Nginx 클라이언트 IP 추출 모듈
