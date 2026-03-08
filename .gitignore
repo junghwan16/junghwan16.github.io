@@ -1,11 +1,7 @@
-_site
-.sass-cache
-.jekyll-cache
-.jekyll-metadata
-vendor
+public/
+resources/_gen/
+.hugo_build.lock
 .DS_Store
 node_modules/
-public/
 quartz/
-tsconfig.tsbuildinfo
 .omc/

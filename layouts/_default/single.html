@@ -1,0 +1,63 @@
+{{ define "main" }}
+{{ if .Params.math }}{{ partial "katex.html" . }}{{ end }}
+{{ if .Params.mermaid }}{{ partial "mermaid.html" . }}{{ end }}
+
+<article>
+  <header class="post-header">
+    <h1>{{ .Title }}</h1>
+    <div class="post-meta">
+      <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "2006-01-02" }}</time>
+      {{ with .Params.categories }}
+      <span class="post-categories">
+        {{ range . }}<a href="{{ printf "/categories/%s/" . | relURL }}" class="cat">{{ . }}</a>{{ end }}
+      </span>
+      {{ end }}
+    </div>
+  </header>
+
+  {{ if .TableOfContents }}
+  <details class="toc">
+    <summary>목차</summary>
+    {{ .TableOfContents }}
+  </details>
+  {{ end }}
+
+  <div class="post-content" data-pagefind-body>
+    {{ .Content }}
+  </div>
+</article>
+
+<!-- Related Posts -->
+{{ $related := .Site.RegularPages.Related . | first 3 }}
+{{ with $related }}
+<aside class="related-posts">
+  <h2>관련 글</h2>
+  <ul>
+    {{ range . }}
+    <li>
+      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+      <span class="date">{{ .Date.Format "2006-01-02" }}</span>
+    </li>
+    {{ end }}
+  </ul>
+</aside>
+{{ end }}
+
+<!-- Post Navigation -->
+<nav class="post-nav" aria-label="글 탐색">
+  {{ with .PrevInSection }}
+  <a href="{{ .RelPermalink }}" class="prev">
+    <span class="label">&larr; 이전 글</span>
+    <span class="title">{{ .Title }}</span>
+  </a>
+  {{ end }}
+  {{ with .NextInSection }}
+  <a href="{{ .RelPermalink }}" class="next">
+    <span class="label">다음 글 &rarr;</span>
+    <span class="title">{{ .Title }}</span>
+  </a>
+  {{ end }}
+</nav>
+
+{{ partial "giscus.html" . }}
+{{ end }}

@@ -1,0 +1,16 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{ with .Description }}<p class="section-desc">{{ . }}</p>{{ end }}
+
+<ul class="post-list">
+{{ $paginator := .Paginate .Pages }}
+{{ range $paginator.Pages }}
+  <li>
+    <span class="date">{{ .Date.Format "2006-01-02" }}</span>
+    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+  </li>
+{{ end }}
+</ul>
+
+{{ partial "pagination.html" $paginator }}
+{{ end }}

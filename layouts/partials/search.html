@@ -1,0 +1,110 @@
+<div class="search-wrapper">
+  <input
+    type="text"
+    id="search-input"
+    placeholder="검색..."
+    autocomplete="off"
+    aria-label="블로그 검색"
+  >
+  <kbd class="search-shortcut">/</kbd>
+  <button class="search-clear" id="search-clear" type="button" aria-label="검색어 지우기">&times;</button>
+  <div id="search-results" class="search-results" hidden></div>
+</div>
+
+<script>
+(function() {
+  let pagefind;
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+  const shortcut = document.querySelector('.search-shortcut');
+  const clearBtn = document.getElementById('search-clear');
+  let debounceTimer;
+
+  function updateClear() {
+    clearBtn.style.display = input.value ? 'block' : 'none';
+    shortcut.hidden = input.value || document.activeElement === input;
+  }
+
+  clearBtn.addEventListener('click', function() {
+    input.value = '';
+    results.hidden = true;
+    updateClear();
+    input.focus();
+  });
+
+  // Keyboard shortcut: "/" to focus search
+  document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && document.activeElement !== input) {
+      e.preventDefault();
+      input.focus();
+    }
+    if (e.key === 'Escape' && document.activeElement === input) {
+      input.blur();
+      input.value = '';
+      results.hidden = true;
+      updateClear();
+    }
+  });
+
+  input.addEventListener('focus', async function() {
+    shortcut.hidden = true;
+    if (!pagefind) {
+      try {
+        pagefind = await import('/pagefind/pagefind.js');
+        await pagefind.init();
+      } catch (e) {
+        // Pagefind not available (dev mode)
+        return;
+      }
+    }
+  });
+
+  input.addEventListener('blur', function() {
+    if (!input.value) shortcut.hidden = false;
+    // Delay hiding results so clicks on results work
+    setTimeout(function() {
+      if (document.activeElement !== input) results.hidden = true;
+    }, 200);
+  });
+
+  input.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    updateClear();
+    const query = input.value.trim();
+
+    if (!query) {
+      results.hidden = true;
+      return;
+    }
+
+    debounceTimer = setTimeout(async function() {
+      if (!pagefind) return;
+      const search = await pagefind.search(query);
+      const items = await Promise.all(
+        search.results.slice(0, 6).map(r => r.data())
+      );
+
+      if (items.length === 0) {
+        results.innerHTML = '<div class="search-empty">검색 결과가 없습니다</div>';
+        results.hidden = false;
+        return;
+      }
+
+      results.innerHTML = items.map(function(item) {
+        return '<a class="search-item" href="' + item.url + '">' +
+          '<span class="search-item-title">' + item.meta.title + '</span>' +
+          '<span class="search-item-excerpt">' + (item.excerpt || '') + '</span>' +
+        '</a>';
+      }).join('');
+      results.hidden = false;
+    }, 150);
+  });
+
+  // Close results when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-wrapper')) {
+      results.hidden = true;
+    }
+  });
+})();
+</script>

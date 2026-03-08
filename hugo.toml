@@ -1,0 +1,68 @@
+baseURL = "https://junghwan16.github.io/"
+languageCode = "ko"
+title = "조정환"
+buildFuture = true
+enableRobotsTXT = true
+
+[params]
+  description = "Backend Engineer"
+
+[params.giscus]
+  repo = "junghwan16/junghwan16.github.io"
+  repo_id = "R_kgDOQ_xZJQ"
+  category = "Announcements"
+  category_id = "DIC_kwDOQ_xZJc4C2AmU"
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+    [markup.goldmark.parser]
+      autoHeadingID = true
+      [markup.goldmark.parser.attribute]
+        block = true
+    [markup.goldmark.extensions]
+      table = true
+      strikethrough = true
+      taskList = true
+      footnote = true
+      [markup.goldmark.extensions.passthrough]
+        enable = true
+        [markup.goldmark.extensions.passthrough.delimiters]
+          block = [["$$", "$$"]]
+          inline = [["$", "$"]]
+
+  [markup.highlight]
+    noClasses = false
+
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 4
+
+[pagination]
+  pagerSize = 10
+
+[related]
+  threshold = 80
+  includeNewer = true
+  toLower = true
+  [[related.indices]]
+    name = "categories"
+    weight = 100
+  [[related.indices]]
+    name = "date"
+    weight = 10
+
+[sitemap]
+  changeFreq = "weekly"
+
+[services]
+  [services.rss]
+    limit = 20
+
+[outputs]
+  home = ["HTML", "RSS"]

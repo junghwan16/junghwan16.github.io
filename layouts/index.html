@@ -1,0 +1,32 @@
+{{ define "main" }}
+
+<!-- Category Navigation -->
+{{ $categories := .Site.Taxonomies.categories }}
+{{ if $categories }}
+<nav class="category-nav" aria-label="카테고리">
+  {{ range $name, $pages := $categories }}
+  <a href="{{ printf "/categories/%s/" $name | relURL }}" class="category-chip">
+    {{ $name }} <span class="count">{{ len $pages }}</span>
+  </a>
+  {{ end }}
+</nav>
+{{ end }}
+
+<!-- Post List -->
+<ul class="post-list">
+{{ $paginator := .Paginate (where site.RegularPages "Section" "posts") }}
+{{ range $paginator.Pages }}
+  <li>
+    <span class="date">{{ .Date.Format "2006-01-02" }}</span>
+    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    {{ with .Params.categories }}
+    <span class="post-categories">
+      {{ range . }}<span class="cat">{{ . }}</span>{{ end }}
+    </span>
+    {{ end }}
+  </li>
+{{ end }}
+</ul>
+
+{{ partial "pagination.html" $paginator }}
+{{ end }}
