@@ -5,7 +5,7 @@ date: 2026-03-08 09:00:00 +0900
 categories: [backend, network]
 ---
 
-> [이전 글](/2026/03/07/http-gzip-compression)에서 서버가 응답을 압축하는 방법을 살펴봤다. 그런데 반대 방향은 어떨까? 클라이언트가 서버에 보내는 **요청 본문**도 압축할 수 있을까? OpenRTB에서는 초당 수십만 건의 bid request가 오가는데, gzip 하나로 네트워크 비용을 수천만 원 단위로 줄인다.
+> [이전 글](/backend/network/2026/03/07/http-response-compression/)에서 서버가 응답을 압축하는 방법을 살펴봤다. 그런데 반대 방향은 어떨까? 클라이언트가 서버에 보내는 **요청 본문**도 압축할 수 있을까? OpenRTB에서는 초당 수십만 건의 bid request가 오가는데, gzip 하나로 네트워크 비용을 수천만 원 단위로 줄인다.
 
 ---
 
@@ -115,7 +115,7 @@ OpenRTB 2.5/2.6 스펙은 gzip 압축을 명시적으로 다룬다:
 
 ## Go 서버에서 gzip 요청 처리하기
 
-앞서 서버 지원 현황에서 봤듯이, Go의 `net/http`는 요청 압축 해제를 자동으로 해주지 않는다. [이전 글](/2026/03/07/http-gzip-compression)에서 봤듯이 Transport가 `gzipReader`로 응답을 투명하게 풀어줬던 것과 달리, 서버 쪽은 수동이다.
+앞서 서버 지원 현황에서 봤듯이, Go의 `net/http`는 요청 압축 해제를 자동으로 해주지 않는다. [이전 글](/backend/network/2026/03/07/http-response-compression/)에서 봤듯이 Transport가 `gzipReader`로 응답을 투명하게 풀어줬던 것과 달리, 서버 쪽은 수동이다.
 
 미들웨어로 직접 만들어야 한다:
 
