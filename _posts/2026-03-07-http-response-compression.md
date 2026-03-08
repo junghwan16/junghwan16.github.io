@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "HTTP gzip 압축: 클라이언트와 서버는 어떻게 협상하는가"
+title: "HTTP 응답 압축: 클라이언트와 서버는 어떻게 협상하는가"
 date: 2026-03-07 09:00:00 +0900
 categories: [backend, network]
 ---
