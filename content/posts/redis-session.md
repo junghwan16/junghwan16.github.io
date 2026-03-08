@@ -9,7 +9,7 @@ categories: [backend, redis]
 
 ## 왜 Redis 세션인가
 
-- 서버를 **무상태(stateless)**로 만들어 수평 확장을 단순화할 수 있다
+- 서버를 **무상태**(stateless)로 만들어 수평 확장을 단순화할 수 있다
 - 인메모리라 빠르고, TTL로 자동 청소된다
 - Sentinel/Cluster로 SPOF를 제거할 수 있다
 
@@ -145,7 +145,7 @@ PSUBSCRIBE "__keyevent@0__:expired"
 
 ## 분산 환경에서의 일관성
 
-세션 데이터는 **결과적 일관성(Eventual Consistency)**으로 충분하다.
+세션 데이터는 **결과적 일관성**(Eventual Consistency)으로 충분하다.
 
 ```
 [요청 1] → Master → 쓰기 성공

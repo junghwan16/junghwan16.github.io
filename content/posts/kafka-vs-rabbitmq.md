@@ -192,14 +192,14 @@ Producer: "Ack 안 왔네? 다시 보낸다!"
 
 ## 저장 정책
 
-Kafka는 메시지를 소비해도 지우지 않는다. **정책(Policy)**에 따라 파일 시스템에 저장한다.
+Kafka는 메시지를 소비해도 지우지 않는다. **정책**(Policy)에 따라 파일 시스템에 저장한다.
 
 | 정책 | 설정 예시 | 설명 |
 |---|---|---|
 | 시간 기반 | `log.retention.hours=168` | 7일 동안 보관 후 삭제 |
 | 크기 기반 | `log.retention.bytes=1GB` | 파티션 크기 초과 시 오래된 것부터 삭제 |
 
-이 정책 덕분에 Kafka는 **과거 데이터 재생(Replay)**이 가능한 스토리지 시스템처럼 동작한다.
+이 정책 덕분에 Kafka는 **과거 데이터 재생**(Replay)이 가능한 스토리지 시스템처럼 동작한다.
 
 RabbitMQ는 소비되면 삭제된다. (단, RabbitMQ Streams 3.9+는 Kafka처럼 append-only 로그 지원)
 

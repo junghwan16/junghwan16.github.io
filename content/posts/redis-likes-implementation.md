@@ -92,7 +92,7 @@ JOIN (
 SET c.like_count = c.like_count + l.new_likes;
 ```
 
-실시간 정확성 대신 **결과적 일관성(Eventual Consistency)**을 갖게 된다.
+실시간 정확성 대신 **결과적 일관성**(Eventual Consistency)을 갖게 된다.
 
 ## 접근 2: Redis로 처리하기
 

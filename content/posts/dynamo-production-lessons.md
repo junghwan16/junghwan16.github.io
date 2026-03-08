@@ -86,7 +86,7 @@ Dynamo 논문(2007)의 핵심 기여:
 2. 안정 해싱, 벡터 클럭, 느슨한 정족수, 머클 트리, 가십 프로토콜 등 **잘 알려진 기법들의 실용적 조합**이 프로덕션에서 동작함을 보여주었다.
 3. (N, R, W) 파라미터로 **서비스별 트레이드오프 조정**이 가능한 유연한 아키텍처를 제시했다.
 
-이 논문이 남긴 가장 중요한 메시지는 "최종 일관성이 프로덕션에서 충분히 실용적이다"라는 것이다. 이후 [Cassandra](https://cassandra.apache.org/doc/latest/), [Riak](https://riak.com/posts/technical/riak-core-the-vnode/), [Voldemort](https://www.project-voldemort.com/voldemort/) 등의 NoSQL 시스템이 Dynamo의 아이디어를 기반으로 탄생했다. "모든 것을 완벽하게"가 아니라 **"비즈니스 요구에 맞게 트레이드오프하라"**는 철학은 오늘날 분산 시스템 설계의 기본 원칙이 되었다.
+이 논문이 남긴 가장 중요한 메시지는 "최종 일관성이 프로덕션에서 충분히 실용적이다"라는 것이다. 이후 [Cassandra](https://cassandra.apache.org/doc/latest/), [Riak](https://riak.com/posts/technical/riak-core-the-vnode/), [Voldemort](https://www.project-voldemort.com/voldemort/) 등의 NoSQL 시스템이 Dynamo의 아이디어를 기반으로 탄생했다. "모든 것을 완벽하게"가 아니라 **"비즈니스 요구에 맞게 트레이드오프하라"** 는 철학은 오늘날 분산 시스템 설계의 기본 원칙이 되었다.
 
 ---
 
