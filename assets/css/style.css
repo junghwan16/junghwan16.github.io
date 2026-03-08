@@ -514,6 +514,32 @@ a.cat:hover {
   border-radius: 6px;
 }
 
+/* Code copy button */
+.copy-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: inherit;
+  background: rgba(255,255,255,0.1);
+  color: #999;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.highlight:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: #ccc;
+}
+
 /* Related Posts */
 .related-posts {
   margin-top: 3rem;
