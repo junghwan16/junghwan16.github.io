@@ -281,6 +281,28 @@ footer {
   color: #ccc;
 }
 
+/* List header (category/tag pages) */
+.list-header {
+  margin-bottom: 1.5rem;
+}
+
+.list-header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.list-count {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #999;
+}
+
+.back-link {
+  font-size: 0.8rem;
+  color: #888;
+}
+
 /* Post list */
 .post-list {
   list-style: none;
@@ -824,6 +846,14 @@ a.cat:hover {
 
   .pagination .disabled {
     color: #555;
+  }
+
+  .list-count {
+    color: #666;
+  }
+
+  .back-link {
+    color: #777;
   }
 
   .error-page h1 {

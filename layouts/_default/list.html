@@ -1,6 +1,9 @@
 {{ define "main" }}
-<h1>{{ .Title }}</h1>
-{{ with .Description }}<p class="section-desc">{{ . }}</p>{{ end }}
+<div class="list-header">
+  <h1>{{ .Title }} <span class="list-count">{{ len .Pages }}</span></h1>
+  {{ with .Description }}<p class="section-desc">{{ . }}</p>{{ end }}
+  <a href="{{ "/" | relURL }}" class="back-link">&larr; 전체 글 보기</a>
+</div>
 
 <ul class="post-list">
 {{ $paginator := .Paginate .Pages }}
