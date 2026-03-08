@@ -186,3 +186,37 @@ curl -X POST http://localhost:8080/bid \
 | 주요 사용처 | 웹 전반 | 서비스 간 통신 (OpenRTB, gRPC, OTLP) |
 
 요청 압축은 응답 압축만큼 보편적이지 않지만, **대용량 JSON을 대량으로 주고받는 서비스 간 통신**에서는 의미 있는 최적화다. 도입을 고려한다면: payload가 일관되게 1KB 이상이고, 초당 수백 건 이상의 트래픽이 있고, 서버가 이를 지원하는지 확인하자. 그리고 decompression bomb 방어를 빠뜨리지 말자.
+
+---
+
+## 참고 자료
+
+### HTTP 스펙
+
+- [RFC 9110 — HTTP Semantics, §8.4 Content-Encoding](https://www.rfc-editor.org/rfc/rfc9110#section-8.4)
+- [RFC 9110 — §12.5.3 Accept-Encoding](https://www.rfc-editor.org/rfc/rfc9110#section-12.5.3)
+- [RFC 9110 — §15.5.16 415 Unsupported Media Type](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.16)
+- [MDN — Content-Encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding)
+- [MDN — HTTP Compression](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Compression)
+
+### 서버/프레임워크
+
+- [Apache mod_deflate — Input Decompression](https://httpd.apache.org/docs/current/mod/mod_deflate.html#input-decompression)
+- [Nginx ngx_http_gunzip_module (응답 전용)](https://nginx.org/en/docs/http/ngx_http_gunzip_module.html)
+- [Express body-parser — inflate 옵션](https://www.npmjs.com/package/body-parser)
+- [ASP.NET Core — Request Decompression](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/request-decompression)
+- [Go net/http](https://pkg.go.dev/net/http) · [compress/gzip](https://pkg.go.dev/compress/gzip)
+
+### OpenRTB
+
+- [OpenRTB 2.5 Specification (IAB, PDF)](https://www.iab.com/wp-content/uploads/2016/03/OpenRTB-API-Specification-Version-2-5-FINAL.pdf)
+- [OpenRTB 2.6 Specification (GitHub)](https://github.com/InteractiveAdvertisingBureau/openrtb2.x/blob/main/2.6.md)
+- [Smaato — GZIP Compression](https://developers.smaato.com/demand-partners/gzip-compression/)
+- [Index Exchange — Compress Traffic Using GZIP](https://kb.indexexchange.com/dsps/managing_your_traffic/compress_traffic_using_GZIP.htm)
+- [BidSwitch — Data Format (Compression)](https://protocol.bidswitch.com/standards/data-format.html)
+
+### 보안
+
+- [Zip bomb — Wikipedia](https://en.wikipedia.org/wiki/Zip_bomb)
+- [OpenTelemetry Collector Decompression Bomb CVE (GHSA-c74f-6mfw-mm4v)](https://github.com/advisories/GHSA-c74f-6mfw-mm4v)
+- [A Better Zip Bomb — David Fifield (USENIX WOOT 2019)](https://www.bamsoftware.com/hacks/zipbomb/)
