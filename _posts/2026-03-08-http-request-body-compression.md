@@ -5,15 +5,13 @@ date: 2026-03-08 09:00:00 +0900
 categories: [backend, network]
 ---
 
-> [이전 글](/2026/03/07/http-gzip-compression)에서 서버가 응답을 압축하는 방법을 살펴봤다. 그런데 반대 방향은 어떨까? 클라이언트가 서버에 보내는 **요청 본문**도 압축할 수 있을까? OpenRTB처럼 초당 수십만 건의 JSON을 주고받는 환경에서는 이게 실제로 쓰인다.
+> [이전 글](/2026/03/07/http-gzip-compression)에서 서버가 응답을 압축하는 방법을 살펴봤다. 그런데 반대 방향은 어떨까? 클라이언트가 서버에 보내는 **요청 본문**도 압축할 수 있을까? OpenRTB에서는 초당 수십만 건의 bid request가 오가는데, gzip 하나로 네트워크 비용을 수천만 원 단위로 줄인다.
 
 ---
 
 ## 요청 압축이란
 
-이전 글에서 본 **응답 압축**은 서버 → 클라이언트 방향이었다. **요청 압축**은 그 반대다. 클라이언트가 request body를 gzip으로 압축해서 보내고, 서버가 이를 풀어서 처리한다.
-
-사용하는 헤더는 동일하다. `Content-Encoding: gzip`을 요청에 붙이면 된다.
+클라이언트가 request body를 gzip으로 압축한 뒤, `Content-Encoding: gzip` 헤더를 붙여서 보낸다. `Content-Type`은 원본 데이터의 타입을 그대로 유지한다.
 
 ```
 POST /api/bid HTTP/1.1
@@ -23,8 +21,6 @@ Content-Length: 1234
 
 <압축된 바이너리 body>
 ```
-
-`Content-Type`은 원본 데이터의 타입을 그대로 유지한다. `Content-Length`는 **압축된 후의 크기**다.
 
 ---
 
@@ -57,13 +53,7 @@ Content-Length: 1234
 
 RFC 9110은 이 415 응답에 `Accept-Encoding` 헤더를 포함해서 "나는 이런 인코딩을 받을 수 있어"라고 알려줄 수 있도록 정의했다. 하지만 이건 사후 발견(backward discovery)이지, 사전 협상이 아니다.
 
-| 구분 | 응답 압축 | 요청 압축 |
-|---|---|---|
-| 방향 | 서버 → 클라이언트 | 클라이언트 → 서버 |
-| 협상 | `Accept-Encoding` → `Content-Encoding` | 없음. 보내고 → 안 되면 415 |
-| 보편성 | 거의 모든 서버·클라이언트 지원 | 서버 지원이 제한적 |
-
-실무에서 클라이언트는 어떻게 서버가 압축을 지원하는지 아는가? **API 문서를 읽는다.** 표준 프로토콜 내에서 알아낼 수 있는 깔끔한 방법은 없다.
+정리하면, 응답 압축은 사전 협상이 있고 요청 압축은 없다. 이게 핵심 차이다. 실무에서 클라이언트는 어떻게 서버가 압축을 지원하는지 아는가? **API 문서를 읽는다.**
 
 ---
 
@@ -92,7 +82,7 @@ Nginx가 지원하지 않는다는 게 의외다. 응답 압축의 `gzip on;`은
 
 방어는 세 겹으로 한다:
 
-1. **압축 상태 크기 제한** — `Content-Length`(wire size)부터 체크. 너무 크면 아예 안 받는다
+1. **압축 상태 크기 제한** — wire size부터 체크. 너무 크면 아예 안 받는다
 2. **스트리밍 해제 + 바이트 카운팅** — 한번에 전부 풀지 않고, 해제하면서 바이트를 세다가 임계값을 넘으면 중단
 3. **압축 비율 제한** — Apache의 `DeflateInflateRatioLimit`은 압축 전/후 비율이 200:1을 넘으면 차단한다. 정상 JSON이 200배로 압축되는 건 사실상 불가능하다
 
@@ -100,9 +90,32 @@ Nginx가 지원하지 않는다는 게 의외다. 응답 압축의 `gzip on;`은
 
 ---
 
+## OpenRTB — 요청 압축이 실제로 쓰이는 곳
+
+요청 압축이 가장 활발하게 쓰이는 곳 중 하나가 **OpenRTB(Real-Time Bidding)**다.
+
+SSP(Supply-Side Platform)가 DSP(Demand-Side Platform)에게 bid request를 보낼 때, JSON payload를 gzip으로 압축해서 전송한다. 왜 이게 의미 있는가:
+
+- bid request payload가 consent string, 복수 EID 등으로 **점점 커지는 추세**다
+- JSON 기준 gzip으로 보통 **60~80% 크기 감소** (3x~6x 압축률)
+- 하루 수억 건 × 수 KB 절감 = **상당한 네트워크 비용 차이** (AWS는 egress에 GB 단위 과금)
+
+OpenRTB 2.5/2.6 스펙은 gzip 압축을 명시적으로 다룬다:
+
+- **요청 압축**: SSP가 `Content-Encoding: gzip`으로 bid request를 압축. **사전에 DSP와 합의 필요**
+- **응답 압축**: SSP가 `Accept-Encoding: gzip`을 보내면 DSP가 알아서 압축 응답. 별도 합의 불필요 — 일반 HTTP 협상과 동일
+
+여기서도 요청 압축과 응답 압축의 비대칭이 그대로 드러난다. 응답 압축은 HTTP 표준 협상을 따르니까 별도 합의 없이 되지만, 요청 압축은 사전 합의가 필요하다.
+
+실제로 Smaato, InMobi 같은 SSP는 모든 파트너에게 요청 압축을 필수로 적용하고, OpenX, Index Exchange, BidSwitch 등은 선택 사항으로 두고 담당자에게 연락해서 활성화하는 구조다. 모든 플랫폼이 `Accept-Encoding: gzip`은 항상 보내므로, DSP가 응답을 압축하는 건 언제든 가능하다.
+
+주의할 점: BidSwitch는 압축을 활성화한 후에도 **일부 요청이 비압축으로 올 수 있다**고 문서에 명시한다. DSP는 `Content-Encoding` 헤더 유무를 반드시 체크해서 분기해야 한다.
+
+---
+
 ## Go 서버에서 gzip 요청 처리하기
 
-Go의 `net/http`는 **응답 압축 해제는 자동으로 해주지만, 요청 압축 해제는 안 해준다.** [이전 글](/2026/03/07/http-gzip-compression)에서 봤듯이 Transport가 `gzipReader`로 응답을 투명하게 풀어줬던 것과 달리, 서버 쪽은 수동이다.
+앞서 서버 지원 현황에서 봤듯이, Go의 `net/http`는 요청 압축 해제를 자동으로 해주지 않는다. [이전 글](/2026/03/07/http-gzip-compression)에서 봤듯이 Transport가 `gzipReader`로 응답을 투명하게 풀어줬던 것과 달리, 서버 쪽은 수동이다.
 
 미들웨어로 직접 만들어야 한다:
 
@@ -162,56 +175,6 @@ curl -X POST http://localhost:8080/bid \
 
 ---
 
-## OpenRTB에서의 활용
-
-요청 압축이 가장 활발하게 쓰이는 곳 중 하나가 **OpenRTB(Real-Time Bidding)**다.
-
-SSP(Supply-Side Platform)가 DSP(Demand-Side Platform)에게 bid request를 보낼 때, JSON payload를 gzip으로 압축해서 전송한다. 왜 이게 의미 있는가:
-
-- bid request payload가 consent string, 복수 EID 등으로 **점점 커지는 추세**다
-- JSON 기준 gzip으로 보통 **60~80% 크기 감소** (3x~6x 압축률)
-- 하루 수억 건 × 수 KB 절감 = **상당한 네트워크 비용 차이** (AWS는 egress에 GB 단위 과금)
-
-OpenRTB 2.5/2.6 스펙은 gzip 압축을 명시적으로 다룬다:
-
-- **요청 압축**: SSP가 `Content-Encoding: gzip`으로 bid request를 압축. **사전에 DSP와 합의 필요**
-- **응답 압축**: SSP가 `Accept-Encoding: gzip`을 보내면 DSP가 알아서 압축 응답. 별도 합의 불필요 — 일반 HTTP 협상과 동일
-
-### 실제 플랫폼별 정책
-
-플랫폼마다 기본값과 활성화 방식이 다르다.
-
-| 플랫폼 | 요청 압축 | 기본값 | 활성화 방법 |
-|---|---|---|---|
-| **Smaato** | 필수 | 항상 압축 | 신규 파트너 전원 필수 |
-| **InMobi** | 필수 | 항상 압축 | opt-out 불가 |
-| **OpenX** | 선택 | 비압축 | Platform Development Manager에 요청 |
-| **Index Exchange** | 선택 | 비압축 | Index 담당자에 요청 |
-| **BidSwitch** | 선택 | 비압축 | support@bidswitch.com |
-| **PubMatic** | 선택 | 비활성 | rtbops@pubmatic.com |
-
-공통 패턴이 보인다:
-
-- **모든 플랫폼**이 `Accept-Encoding: gzip`을 bid request에 항상 포함한다 → DSP는 별도 합의 없이 gzip 응답 가능
-- **요청 압축**은 사전 합의가 필요하다 — 대부분 담당자에게 연락해서 활성화
-- BidSwitch는 압축 활성화 후에도 **일부 요청이 비압축으로 올 수 있다**고 명시한다 → DSP는 `Content-Encoding` 헤더 유무를 반드시 체크해야 한다
-
-### 브라우저 환경의 제약 — Prebid.js
-
-서버 간 통신에서는 `Content-Encoding: gzip`을 자유롭게 쓸 수 있다. 그런데 **브라우저**에서는 상황이 다르다.
-
-`Content-Encoding`은 CORS safelisted request header가 아니다. 브라우저에서 이 헤더를 설정하면 **preflight(OPTIONS) 요청**이 추가로 발생한다. RTB에서 이 추가 왕복은 치명적이다.
-
-Prebid.js는 이를 우회하기 위해:
-- `Content-Encoding` 헤더 대신 **`?gzip=1` 쿼리 파라미터**로 압축 여부를 알린다
-- `Content-Type`도 `text/plain`으로 바꿔서 CORS simple request를 유지한다
-
-### 대안: Protocol Buffers
-
-OpenRTB 3.0은 JSON 외에 Protocol Buffers 같은 바이너리 포맷도 지원한다. 압축 없이도 JSON보다 작고, 직렬화/역직렬화 CPU도 적다. Google Authorized Buyers는 고빈도 환경에서 ProtoBuf를 권장한다.
-
----
-
 ## 정리
 
 | 구분 | 응답 압축 | 요청 압축 |
@@ -222,4 +185,4 @@ OpenRTB 3.0은 JSON 외에 Protocol Buffers 같은 바이너리 포맷도 지원
 | 보안 | decompression bomb 가능 | decompression bomb 가능 |
 | 주요 사용처 | 웹 전반 | 서비스 간 통신 (OpenRTB, gRPC, OTLP) |
 
-요청 압축은 응답 압축만큼 보편적이지 않지만, **대용량 JSON을 대량으로 주고받는 서비스 간 통신**에서는 의미 있는 최적화다. 서버가 지원하는지 확인하고, decompression bomb 방어를 반드시 구현해야 한다는 점만 기억하면 된다.
+요청 압축은 응답 압축만큼 보편적이지 않지만, **대용량 JSON을 대량으로 주고받는 서비스 간 통신**에서는 의미 있는 최적화다. 도입을 고려한다면: payload가 일관되게 1KB 이상이고, 초당 수백 건 이상의 트래픽이 있고, 서버가 이를 지원하는지 확인하자. 그리고 decompression bomb 방어를 빠뜨리지 말자.
