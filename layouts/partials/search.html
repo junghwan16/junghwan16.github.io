@@ -1,4 +1,7 @@
 <div class="search-wrapper">
+  <button class="search-toggle" id="search-toggle" type="button" aria-label="검색 열기">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  </button>
   <input
     type="text"
     id="search-input"
@@ -18,59 +21,102 @@
   const results = document.getElementById('search-results');
   const shortcut = document.querySelector('.search-shortcut');
   const clearBtn = document.getElementById('search-clear');
+  const toggle = document.getElementById('search-toggle');
   let debounceTimer;
+  const isMobile = function() { return window.innerWidth <= 600; };
 
   function updateClear() {
-    clearBtn.style.display = input.value ? 'block' : 'none';
-    shortcut.hidden = input.value || document.activeElement === input;
+    if (!isMobile()) {
+      clearBtn.style.display = input.value ? 'block' : 'none';
+      shortcut.hidden = input.value || document.activeElement === input;
+    }
   }
 
-  clearBtn.addEventListener('click', function() {
+  function closeSearch() {
     input.value = '';
+    input.classList.remove('active');
     results.hidden = true;
+    removeOverlay();
     updateClear();
+  }
+
+  function removeOverlay() {
+    var overlay = document.querySelector('.search-overlay');
+    if (overlay) overlay.remove();
+  }
+
+  function addOverlay() {
+    if (!document.querySelector('.search-overlay')) {
+      var overlay = document.createElement('div');
+      overlay.className = 'search-overlay';
+      overlay.addEventListener('click', closeSearch);
+      document.body.appendChild(overlay);
+    }
+  }
+
+  // Mobile: toggle button opens search
+  toggle.addEventListener('click', function() {
+    input.classList.add('active');
+    addOverlay();
     input.focus();
+    initPagefind();
+  });
+
+  clearBtn.addEventListener('click', function() {
+    if (isMobile()) {
+      closeSearch();
+    } else {
+      input.value = '';
+      results.hidden = true;
+      updateClear();
+      input.focus();
+    }
   });
 
   // Keyboard shortcut: "/" to focus search
   document.addEventListener('keydown', function(e) {
     if (e.key === '/' && document.activeElement !== input) {
       e.preventDefault();
+      if (isMobile()) {
+        input.classList.add('active');
+        addOverlay();
+      }
       input.focus();
+      initPagefind();
     }
-    if (e.key === 'Escape' && document.activeElement === input) {
+    if (e.key === 'Escape') {
+      closeSearch();
       input.blur();
-      input.value = '';
-      results.hidden = true;
-      updateClear();
     }
   });
 
-  input.addEventListener('focus', async function() {
-    shortcut.hidden = true;
+  async function initPagefind() {
     if (!pagefind) {
       try {
         pagefind = await import('/pagefind/pagefind.js');
         await pagefind.init();
-      } catch (e) {
-        // Pagefind not available (dev mode)
-        return;
-      }
+      } catch (e) { return; }
     }
+  }
+
+  input.addEventListener('focus', function() {
+    shortcut.hidden = true;
+    initPagefind();
   });
 
   input.addEventListener('blur', function() {
-    if (!input.value) shortcut.hidden = false;
-    // Delay hiding results so clicks on results work
+    if (!input.value && !isMobile()) shortcut.hidden = false;
     setTimeout(function() {
-      if (document.activeElement !== input) results.hidden = true;
+      if (document.activeElement !== input && !isMobile()) {
+        results.hidden = true;
+      }
     }, 200);
   });
 
   input.addEventListener('input', function() {
     clearTimeout(debounceTimer);
     updateClear();
-    const query = input.value.trim();
+    var query = input.value.trim();
 
     if (!query) {
       results.hidden = true;
@@ -79,9 +125,9 @@
 
     debounceTimer = setTimeout(async function() {
       if (!pagefind) return;
-      const search = await pagefind.search(query);
-      const items = await Promise.all(
-        search.results.slice(0, 6).map(r => r.data())
+      var search = await pagefind.search(query);
+      var items = await Promise.all(
+        search.results.slice(0, 6).map(function(r) { return r.data(); })
       );
 
       if (items.length === 0) {
@@ -100,9 +146,9 @@
     }, 150);
   });
 
-  // Close results when clicking outside
+  // Close results when clicking outside (desktop)
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.search-wrapper')) {
+    if (!e.target.closest('.search-wrapper') && !isMobile()) {
       results.hidden = true;
     }
   });
