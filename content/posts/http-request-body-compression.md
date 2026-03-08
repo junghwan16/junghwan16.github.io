@@ -49,7 +49,7 @@ Content-Length: 1234
     |<--- 200 OK 또는 415 Unsupported ----------|
 ```
 
-요청 압축에는 `Accept-Encoding`에 대응하는 사전 협상 메커니즘이 없다. 클라이언트가 그냥 압축해서 보내고, 서버가 못 풀면 **`415 Unsupported Media Type`**을 돌려준다.
+요청 압축에는 `Accept-Encoding`에 대응하는 사전 협상 메커니즘이 없다. 클라이언트가 그냥 압축해서 보내고, 서버가 못 풀면 `415 Unsupported Media Type` 을 돌려준다.
 
 RFC 9110은 이 415 응답에 `Accept-Encoding` 헤더를 포함해서 "나는 이런 인코딩을 받을 수 있어"라고 알려줄 수 있도록 정의했다. 하지만 이건 사후 발견(backward discovery)이지, 사전 협상이 아니다.
 
@@ -92,7 +92,7 @@ Nginx가 지원하지 않는다는 게 의외다. 응답 압축의 `gzip on;`은
 
 ## OpenRTB — 요청 압축이 실제로 쓰이는 곳
 
-요청 압축이 가장 활발하게 쓰이는 곳 중 하나가 **OpenRTB(Real-Time Bidding)**다.
+요청 압축이 가장 활발하게 쓰이는 곳 중 하나가 **OpenRTB**(Real-Time Bidding)다.
 
 SSP(Supply-Side Platform)가 DSP(Demand-Side Platform)에게 bid request를 보낼 때, JSON payload를 gzip으로 압축해서 전송한다. 왜 이게 의미 있는가:
 

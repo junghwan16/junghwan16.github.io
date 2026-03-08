@@ -817,6 +817,10 @@ pre:hover > .copy-btn {
     color: #1a1a1a;
   }
 
+  .post-list > li > a:hover {
+    color: #aaa;
+  }
+
   .post-list .date,
   .post-meta,
   .post-meta time {
