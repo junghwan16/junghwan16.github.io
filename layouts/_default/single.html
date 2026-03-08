@@ -63,21 +63,27 @@
 
 <script>
 (function() {
-  document.querySelectorAll('.post-content .highlight').forEach(function(block) {
+  function addCopyBtn(block, codeEl) {
     var btn = document.createElement('button');
     btn.className = 'copy-btn';
     btn.textContent = '복사';
     btn.setAttribute('aria-label', '코드 복사');
     btn.addEventListener('click', function() {
-      var code = block.querySelector('code');
-      if (!code) return;
-      navigator.clipboard.writeText(code.textContent).then(function() {
+      navigator.clipboard.writeText(codeEl.textContent).then(function() {
         btn.textContent = '완료';
         setTimeout(function() { btn.textContent = '복사'; }, 1500);
       });
     });
     block.style.position = 'relative';
     block.appendChild(btn);
+  }
+  document.querySelectorAll('.post-content .highlight').forEach(function(block) {
+    var code = block.querySelector('code');
+    if (code) addCopyBtn(block, code);
+  });
+  document.querySelectorAll('.post-content pre > code').forEach(function(code) {
+    if (code.closest('.highlight')) return;
+    addCopyBtn(code.parentElement, code);
   });
 })();
 </script>

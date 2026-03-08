@@ -531,7 +531,8 @@ a.cat:hover {
   transition: opacity 0.15s;
 }
 
-.highlight:hover .copy-btn {
+.highlight:hover .copy-btn,
+pre:hover > .copy-btn {
   opacity: 1;
 }
 
