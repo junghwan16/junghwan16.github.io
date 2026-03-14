@@ -3,6 +3,7 @@ title: "Kafka vs RabbitMQ 핵심 개념 정리"
 url: "/backend/messaging/2026/01/30/kafka-vs-rabbitmq/"
 date: 2026-01-30 10:00:00 +0900
 categories: [backend, messaging]
+mermaid: true
 ---
 
 메시지 브로커 선택은 시스템 설계에서 중요한 결정이다. Kafka와 RabbitMQ의 차이를 개념부터 실전 패턴까지 정리했다.
@@ -20,24 +21,19 @@ categories: [backend, messaging]
 
 ### Push vs Pull
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     RabbitMQ (Push)                             │
-│  ┌──────────┐      ┌──────────┐      ┌──────────┐              │
-│  │ Producer │ ──── │  Broker  │ ════>│ Consumer │              │
-│  └──────────┘      └──────────┘      └──────────┘              │
-│                         │                  │                    │
-│                    브로커가 주도     "받아라!" (수동적)          │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph RabbitMQ["RabbitMQ (Push)"]
+        direction LR
+        RP[Producer] --> RB["Broker\n브로커가 주도"]
+        RB ==>|"받아라!"| RC["Consumer\n(수동적)"]
+    end
 
-┌─────────────────────────────────────────────────────────────────┐
-│                       Kafka (Pull)                              │
-│  ┌──────────┐      ┌──────────┐      ┌──────────┐              │
-│  │ Producer │ ──── │  Broker  │ <════│ Consumer │              │
-│  └──────────┘      └──────────┘      └──────────┘              │
-│                         │                  │                    │
-│                    로그만 저장       "줘!" (능동적)              │
-└─────────────────────────────────────────────────────────────────┘
+    subgraph Kafka["Kafka (Pull)"]
+        direction LR
+        KP[Producer] --> KB["Broker\n로그만 저장"]
+        KC["Consumer\n(능동적)"] ==>|"줘!"| KB
+    end
 ```
 
 **RabbitMQ (Smart Broker, Dumb Consumer)**
@@ -93,20 +89,25 @@ RabbitMQ는 **AMQP(Advanced Message Queuing Protocol)** 0-9-1을 사용한다. I
 
 정산 서버가 3대인데 같은 클릭 이벤트를 3대 모두 처리하면 100원짜리 클릭이 300원으로 과청구된다.
 
-```
-클릭 이벤트 -> [ Kafka Topic: ad-clicks ]
-                    |
-        +-----------+-----------+
-        v           v           v
-    +-----------------------------+
-    |  Consumer Group: "정산"      |  <- 3대가 이벤트를 나눠서 처리
-    |  서버A  서버B  서버C         |     (한 이벤트는 딱 한 대만)
-    +-----------------------------+
+```mermaid
+flowchart TD
+    E["클릭 이벤트"] --> T["Kafka Topic: ad-clicks"]
+    T --> G1
+    T --> G2
 
-    +-----------------------------+
-    |  Consumer Group: "분석"      |  <- 별도 그룹이라 같은 이벤트를 또 받음
-    +-----------------------------+
+    subgraph G1["Consumer Group: 정산"]
+        direction LR
+        A["서버A"] ~~~ B["서버B"] ~~~ C["서버C"]
+    end
+
+    subgraph G2["Consumer Group: 분석"]
+        direction LR
+        D["분석 서버"]
+    end
 ```
+
+- 정산 그룹: 3대가 이벤트를 **나눠서** 처리 (한 이벤트는 딱 한 대만)
+- 분석 그룹: 별도 그룹이라 **같은 이벤트를 또 받음**
 
 **핵심 규칙**
 - **같은 Consumer Group 내에서는** -> 이벤트를 나눠 가짐 (중복 처리 방지)
@@ -156,15 +157,11 @@ hash(ad_id) % 파티션_수  # -> 해당 Partition으로
 
 분산 시스템에서 메시지를 얼마나 확실하게 처리할 것인지에 대한 약속이다.
 
-```
-┌───────────────┬─────────────┬─────────────┬─────────────────────┐
-│    보장 수준   │  메시지 유실 │  메시지 중복 │       사용 예시      │
-├───────────────┼─────────────┼─────────────┼─────────────────────┤
-│ At-most-once  │     O       │     X       │ 로그, 메트릭        │
-│ At-least-once │     X       │     O       │ 알림, 이벤트 처리    │
-│ Exactly-once  │     X       │     X       │ 결제, 정산          │
-└───────────────┴─────────────┴─────────────┴─────────────────────┘
-```
+| 보장 수준 | 메시지 유실 | 메시지 중복 | 사용 예시 |
+|-----------|-----------|-----------|----------|
+| At-most-once | O | X | 로그, 메트릭 |
+| At-least-once | X | O | 알림, 이벤트 처리 |
+| Exactly-once | X | X | 결제, 정산 |
 
 ### At-most-once (최대 한 번)
 
@@ -325,14 +322,22 @@ def process_event(event):
 
 Kafka 브로커들이 자체적으로 Raft 프로토콜로 합의를 수행한다.
 
-```
-Before (Zookeeper 방식):
-[Broker 1] ---> [Zookeeper Cluster] <--- [Broker 2]
+**Before (Zookeeper 방식):**
 
-After (KRaft 방식):
-[Controller 1] <--Raft--> [Controller 2] <--Raft--> [Controller 3]
-      |                         |                         |
-[Broker 1]              [Broker 2]                [Broker 3]
+```mermaid
+flowchart TD
+    B1[Broker 1] --> ZK["Zookeeper Cluster"]
+    B2[Broker 2] --> ZK
+```
+
+**After (KRaft 방식):**
+
+```mermaid
+flowchart TD
+    C1[Controller 1] <-->|Raft| C2[Controller 2] <-->|Raft| C3[Controller 3]
+    C1 --- B1[Broker 1]
+    C2 --- B2[Broker 2]
+    C3 --- B3[Broker 3]
 ```
 
 - 빠른 복구: Controller 장애 시 밀리초 단위로 새 Controller 선출

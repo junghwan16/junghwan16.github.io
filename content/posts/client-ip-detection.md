@@ -3,6 +3,7 @@ title: "클라이언트의 IP를 알아내는 방법"
 url: "/backend/network/2026/02/07/client-ip-detection/"
 date: 2026-02-07 13:00:00 +0900
 categories: [backend, network]
+mermaid: true
 ---
 
 서버 개발을 하다보면 클라이언트의 IP를 알아야할 때가 있다. TCP 연결 자체가 IP 기반이니 쉬울 것 같지만, 프로덕션 환경은 여러 홉을 거치기 때문에 생각보다 간단하지 않다.
@@ -227,24 +228,18 @@ host, _, _ := net.SplitHostPort(remoteAddr)
 
 ## 요약
 
-```
-"클라이언트 IP를 알고 싶다"
-        │
-        ├── 프록시가 없다면?
-        │       └── RemoteAddr (peer IP) = 클라이언트 IP ✅
-        │
-        └── 프록시가 있다면?
-                │
-                ├── XFF 헤더 확인
-                │       │
-                │       ├── 첫 번째 값을 그냥 쓰면? → ❌ 스푸핑 위험
-                │       │
-                │       └── 오른쪽부터 trusted proxy 제거 → ✅
-                │
-                └── IP만으로 부족한 경우
-                        ├── CGNAT: 여러 유저가 같은 IP
-                        ├── VPN: 위치 불일치
-                        └── → 다른 시그널과 조합 필요
+```mermaid
+flowchart TD
+    Q["클라이언트 IP를 알고 싶다"]
+    Q --> A{프록시가 있는가?}
+    A -- No --> B["RemoteAddr = 클라이언트 IP ✅"]
+    A -- Yes --> C{XFF 헤더 확인}
+    C --> D["첫 번째 값을 그냥 쓰면? ❌ 스푸핑 위험"]
+    C --> E["오른쪽부터 trusted proxy 제거 ✅"]
+    A -- Yes --> F{IP만으로 부족한 경우}
+    F --> G["CGNAT: 여러 유저가 같은 IP"]
+    F --> H["VPN: 위치 불일치"]
+    F --> I["→ 다른 시그널과 조합 필요"]
 ```
 
 ---
