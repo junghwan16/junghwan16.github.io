@@ -44,7 +44,7 @@ enableRobotsTXT = true
     endLevel = 4
 
 [pagination]
-  pagerSize = 10
+  pagerSize = 30
 
 [related]
   threshold = 80

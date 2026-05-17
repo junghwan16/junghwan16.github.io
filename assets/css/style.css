@@ -13,7 +13,7 @@ body {
   background: #fff;
   max-width: 720px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 2rem 1rem 1rem;
 }
 
 a {
@@ -75,11 +75,11 @@ header nav {
 
 /* Footer */
 footer {
-  margin-top: 3rem;
-  padding: 1.5rem 0;
+  margin-top: 2rem;
+  padding: 1rem 0 0.5rem;
   border-top: 1px solid #eee;
-  color: #888;
-  font-size: 0.8rem;
+  color: #999;
+  font-size: 0.78rem;
   text-align: center;
 }
 
@@ -266,28 +266,22 @@ footer a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.25rem 0.65rem;
-  border: 1px solid #ddd;
-  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
   font-size: 0.8rem;
   color: #555;
-  transition: all 0.15s;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
 }
 
 .category-chip:hover {
-  background: #222;
-  color: #fff;
-  border-color: #222;
+  background: #f0f0f0;
+  color: #111;
   text-decoration: none;
 }
 
 .category-chip .count {
   font-size: 0.7rem;
-  color: #999;
-}
-
-.category-chip:hover .count {
-  color: #ccc;
+  color: #aaa;
 }
 
 /* List header (category/tag pages) */
@@ -350,17 +344,14 @@ footer a:hover {
 }
 
 .cat {
-  font-size: 0.7rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
-  background: #f0f0f0;
-  color: #666;
+  font-size: 0.72rem;
+  color: #999;
   text-decoration: none;
+  font-family: "SFMono-Regular", Consolas, monospace;
 }
 
 a.cat:hover {
-  background: #222;
-  color: #fff;
+  color: #222;
   text-decoration: none;
 }
 
@@ -395,27 +386,44 @@ a.cat:hover {
   font-size: 0.8rem;
 }
 
-/* Table of Contents */
+/* Table of Contents — flush, no card */
 .toc {
   margin-bottom: 2rem;
-  padding: 1rem;
-  background: #fafafa;
-  border-radius: 6px;
   font-size: 0.85rem;
+  color: #777;
 }
 
 .toc summary {
   cursor: pointer;
-  font-weight: 600;
-  color: #555;
+  color: #999;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  list-style: none;
+}
+
+.toc summary::-webkit-details-marker {
+  display: none;
+}
+
+.toc summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.35em;
+  transition: transform 0.15s;
+}
+
+.toc[open] summary::before {
+  transform: rotate(90deg);
 }
 
 .toc nav {
   margin-top: 0.5rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid #eee;
 }
 
 .toc ul {
-  padding-left: 1.2rem;
+  padding-left: 0.9rem;
   list-style: none;
 }
 
@@ -424,7 +432,7 @@ a.cat:hover {
 }
 
 .toc a {
-  color: #555;
+  color: #777;
 }
 
 .toc a:hover {
@@ -433,11 +441,9 @@ a.cat:hover {
 
 /* Post content */
 .post-content h2 {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   margin-top: 2.5rem;
   margin-bottom: 0.5rem;
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid #eee;
 }
 
 .post-content h3 {
@@ -474,15 +480,16 @@ a.cat:hover {
 }
 
 .post-content a {
-  color: #0969da;
+  color: #1a1a1a;
   text-decoration: underline;
-  text-decoration-color: rgba(9, 105, 218, 0.3);
-  text-underline-offset: 2px;
+  text-decoration-color: #ccc;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   transition: text-decoration-color 0.15s;
 }
 
 .post-content a:hover {
-  text-decoration-color: #0969da;
+  text-decoration-color: #1a1a1a;
 }
 
 .post-content pre {
@@ -599,28 +606,32 @@ pre:hover > .copy-btn {
   flex-shrink: 0;
 }
 
-/* Post Navigation */
+/* Post Navigation — plain prev/next, no boxes */
 .post-nav {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid #eee;
+  font-size: 0.88rem;
 }
 
 .post-nav a {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  transition: border-color 0.15s;
+  color: #555;
 }
 
 .post-nav a:hover {
-  border-color: #222;
+  color: #111;
   text-decoration: none;
+}
+
+.post-nav a:hover .title {
+  text-decoration: underline;
+  text-decoration-color: #ccc;
+  text-underline-offset: 3px;
 }
 
 .post-nav .next {
@@ -629,15 +640,15 @@ pre:hover > .copy-btn {
 }
 
 .post-nav .label {
-  font-size: 0.75rem;
-  color: #888;
-  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  color: #aaa;
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.02em;
 }
 
 .post-nav .title {
-  font-size: 0.85rem;
-  font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.4;
+  color: #333;
 }
 
 /* Pagination */
@@ -674,10 +685,11 @@ pre:hover > .copy-btn {
 }
 
 .error-page h1 {
-  font-size: 5rem;
-  color: #ddd;
-  line-height: 1;
-  margin-bottom: 1rem;
+  font-size: 2rem;
+  color: #999;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
 }
 
 .error-page p {
@@ -793,14 +805,12 @@ pre:hover > .copy-btn {
   }
 
   .category-chip {
-    border-color: #444;
     color: #aaa;
   }
 
   .category-chip:hover {
-    background: #e0e0e0;
-    color: #1a1a1a;
-    border-color: #e0e0e0;
+    background: #2a2a2a;
+    color: #e0e0e0;
   }
 
   .category-chip .count {
@@ -808,13 +818,11 @@ pre:hover > .copy-btn {
   }
 
   .cat {
-    background: #2a2a2a;
-    color: #aaa;
+    color: #666;
   }
 
   a.cat:hover {
-    background: #e0e0e0;
-    color: #1a1a1a;
+    color: #e0e0e0;
   }
 
   .post-list > li > a:hover {
@@ -845,12 +853,12 @@ pre:hover > .copy-btn {
   }
 
   .post-content a {
-    color: #58a6ff;
-    text-decoration-color: rgba(88, 166, 255, 0.3);
+    color: #e0e0e0;
+    text-decoration-color: #555;
   }
 
   .post-content a:hover {
-    text-decoration-color: #58a6ff;
+    text-decoration-color: #e0e0e0;
   }
 
   .post-content blockquote {
@@ -896,15 +904,23 @@ pre:hover > .copy-btn {
   }
 
   .post-nav a {
-    border-color: #333;
+    color: #999;
   }
 
   .post-nav a:hover {
-    border-color: #e0e0e0;
+    color: #e0e0e0;
+  }
+
+  .post-nav a:hover .title {
+    text-decoration-color: #555;
   }
 
   .post-nav .label {
     color: #666;
+  }
+
+  .post-nav .title {
+    color: #ccc;
   }
 
   .comments {
