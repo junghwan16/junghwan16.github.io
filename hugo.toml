@@ -1,6 +1,6 @@
 baseURL = "https://junghwan16.github.io/"
 languageCode = "ko"
-title = "조정환"
+title = "Deus ex machina"
 buildFuture = true
 enableRobotsTXT = true
 
