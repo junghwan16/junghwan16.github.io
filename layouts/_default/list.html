@@ -1,11 +1,11 @@
 {{ define "main" }}
 <h2>{{ .Title }} <small>({{ len .Pages }})</small></h2>
 {{ $paginator := .Paginate .Pages }}
-{{ range $paginator.Pages.GroupByDate "2006" }}
+{{ range $paginator.Pages.GroupByDate "2006-01" }}
 <h3>{{ .Key }}</h3>
 <ul>
 {{ range .Pages }}
-<li><small><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01-02" }}</time></small> <a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
 {{ end }}
 </ul>
 {{ end }}
