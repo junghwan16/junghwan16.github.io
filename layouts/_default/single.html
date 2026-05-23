@@ -3,88 +3,18 @@
 {{ if .Params.mermaid }}{{ partial "mermaid.html" . }}{{ end }}
 
 <article>
-  <header class="post-header">
-    <h1>{{ .Title }}</h1>
-    <div class="post-meta">
-      <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "2006-01-02" }}</time>
-      {{ with .Params.categories }}
-      <span class="post-categories">
-        {{ range . }}<a href="{{ printf "/categories/%s/" . | relURL }}" class="cat">{{ . }}</a>{{ end }}
-      </span>
-      {{ end }}
-    </div>
-  </header>
-
-  {{ if .TableOfContents }}
-  <details class="toc">
-    <summary>목차</summary>
-    {{ .TableOfContents }}
-  </details>
-  {{ end }}
-
-  <div class="post-content" data-pagefind-body>
-    {{ .Content }}
-  </div>
+<h1>{{ .Title }}</h1>
+<p><small><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time></small></p>
+{{ .Content }}
 </article>
 
-<!-- Related Posts -->
-{{ $related := .Site.RegularPages.Related . | first 3 }}
-{{ with $related }}
-<aside class="related-posts">
-  <h2>관련 글</h2>
-  <ul>
-    {{ range . }}
-    <li>
-      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-      <span class="date">{{ .Date.Format "2006-01-02" }}</span>
-    </li>
-    {{ end }}
-  </ul>
-</aside>
-{{ end }}
-
-<!-- Post Navigation -->
-<nav class="post-nav" aria-label="글 탐색">
-  {{ with .PrevInSection }}
-  <a href="{{ .RelPermalink }}" class="prev">
-    <span class="label">&larr; 이전 글</span>
-    <span class="title">{{ .Title }}</span>
-  </a>
-  {{ end }}
-  {{ with .NextInSection }}
-  <a href="{{ .RelPermalink }}" class="next">
-    <span class="label">다음 글 &rarr;</span>
-    <span class="title">{{ .Title }}</span>
-  </a>
-  {{ end }}
+<nav>
+<small>
+{{ with .PrevInSection }}<a href="{{ .RelPermalink }}">← {{ .Title }}</a>{{ end }}
+{{ if and .PrevInSection .NextInSection }} · {{ end }}
+{{ with .NextInSection }}<a href="{{ .RelPermalink }}">{{ .Title }} →</a>{{ end }}
+</small>
 </nav>
 
 {{ partial "giscus.html" . }}
-
-<script>
-(function() {
-  function addCopyBtn(block, codeEl) {
-    var btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = '복사';
-    btn.setAttribute('aria-label', '코드 복사');
-    btn.addEventListener('click', function() {
-      navigator.clipboard.writeText(codeEl.textContent).then(function() {
-        btn.textContent = '완료';
-        setTimeout(function() { btn.textContent = '복사'; }, 1500);
-      });
-    });
-    block.style.position = 'relative';
-    block.appendChild(btn);
-  }
-  document.querySelectorAll('.post-content .highlight').forEach(function(block) {
-    var code = block.querySelector('code');
-    if (code) addCopyBtn(block, code);
-  });
-  document.querySelectorAll('.post-content pre > code').forEach(function(code) {
-    if (code.closest('.highlight')) return;
-    addCopyBtn(code.parentElement, code);
-  });
-})();
-</script>
 {{ end }}

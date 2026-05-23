@@ -1,102 +1,20 @@
-/* no-css 스타일: 브라우저 기본 + 최소한의 가독성 보정 */
-
 body {
   max-width: 40em;
   margin: 2em auto;
   padding: 0 1em;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", sans-serif;
-  line-height: 1.6;
-  color: #222;
-  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.7;
 }
 
 @media (prefers-color-scheme: dark) {
   body { color: #ddd; background: #111; }
-  a { color: #6af; }
-  a:visited { color: #b9f; }
-  hr, footer, .toc { border-color: #444; }
-  code, pre, .toc { background: #1c1c1c; }
-  .copy-btn { background: #222; color: #ddd; border-color: #555; }
+  a { color: #8cf; }
+  a:visited { color: #c9f; }
+  pre, code { background: #1a1a1a; }
 }
 
-img { max-width: 100%; height: auto; }
-
-pre {
-  overflow-x: auto;
-  padding: 0.6em 0.8em;
-  background: #f4f4f4;
-  font-size: 0.9em;
-}
-
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.9em;
-  background: #f4f4f4;
-  padding: 0 0.2em;
-}
-
+pre { overflow-x: auto; padding: 0.6em 0.8em; background: #f0f0f0; }
+code { background: #f0f0f0; padding: 0 0.2em; }
 pre code { background: none; padding: 0; }
 
-blockquote {
-  margin: 1em 0;
-  padding-left: 1em;
-  border-left: 3px solid #ccc;
-  color: #555;
-}
-
-table { border-collapse: collapse; }
-th, td { border: 1px solid #999; padding: 0.3em 0.6em; }
-
-hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
-
-.skip-link { position: absolute; left: -9999px; }
-.skip-link:focus { left: 1em; top: 1em; background: #ff0; color: #000; padding: 0.3em; }
-
-header nav { margin-bottom: 1em; }
-header .site-title { font-weight: bold; text-decoration: none; white-space: nowrap; }
-
-.post-list { list-style: none; padding: 0; }
-.post-list li { margin: 0.4em 0; }
-.post-list .date { color: #777; margin-right: 0.6em; font-variant-numeric: tabular-nums; }
-
-.post-meta { color: #777; font-size: 0.9em; margin-bottom: 1em; }
-.post-meta a { color: #777; }
-
-.post-categories .cat { margin-left: 0.4em; }
-
-.category-nav { margin: 1em 0; }
-.category-nav a { margin-right: 0.6em; }
-
-.list-count { color: #777; font-weight: normal; font-size: 0.8em; }
-.section-desc { color: #555; }
-
-.toc { margin: 1em 0; padding: 0.5em 0.8em; background: #f8f8f8; }
-.toc summary { cursor: pointer; }
-
-.related-posts, .post-nav { margin-top: 2em; }
-.post-nav .prev, .post-nav .next { display: block; margin: 0.3em 0; }
-.post-nav .label { color: #777; font-size: 0.85em; margin-right: 0.3em; }
-
-.pagination { margin: 2em 0; }
-.pagination .disabled { color: #aaa; }
-.pagination .page-info { margin: 0 0.8em; color: #777; }
-
-.copy-btn {
-  position: absolute;
-  top: 0.3em;
-  right: 0.3em;
-  font: inherit;
-  font-size: 0.75em;
-  padding: 0.1em 0.4em;
-  background: #fff;
-  border: 1px solid #999;
-  cursor: pointer;
-}
-
-footer {
-  margin-top: 3em;
-  padding-top: 1em;
-  border-top: 1px solid #ccc;
-  color: #777;
-  font-size: 0.9em;
-}
+img { max-width: 100%; height: auto; }

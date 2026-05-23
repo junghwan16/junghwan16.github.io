@@ -1,20 +1,23 @@
 <!DOCTYPE html>
 <html lang="{{ .Site.LanguageCode }}">
 <head>
-  {{ partial "head.html" . }}
+{{ partial "head.html" . }}
 </head>
 <body>
-  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
-  <header>
-    <nav aria-label="메인 메뉴">
-      <a href="{{ "/" | relURL }}" class="site-title">{{ .Site.Title }}</a>
-    </nav>
-  </header>
-  <main id="main-content">
-    {{ block "main" . }}{{ end }}
-  </main>
-  <footer role="contentinfo">
-    <p>&copy; {{ now.Year }} {{ .Site.Title }} · <a href="https://github.com/junghwan16" target="_blank" rel="noopener">GitHub</a></p>
-  </footer>
+<header>
+<strong><a href="{{ "/" | relURL }}">{{ .Site.Title }}</a></strong>
+</header>
+<hr>
+<main>
+{{ block "main" . }}{{ end }}
+</main>
+<hr>
+<footer>
+<small>
+&copy; {{ now.Year }} {{ .Site.Title }} ·
+<a href="https://github.com/junghwan16">github</a> ·
+<a href="{{ "/index.xml" | relURL }}">rss</a>
+</small>
+</footer>
 </body>
 </html>

@@ -1,19 +1,13 @@
 {{ define "main" }}
-<div class="list-header">
-  <h1>{{ .Title }} <span class="list-count">{{ len .Pages }}</span></h1>
-  {{ with .Description }}<p class="section-desc">{{ . }}</p>{{ end }}
-  <a href="{{ "/" | relURL }}" class="back-link">&larr; 전체 글 보기</a>
-</div>
-
-<ul class="post-list">
+<h2>{{ .Title }} <small>({{ len .Pages }})</small></h2>
 {{ $paginator := .Paginate .Pages }}
-{{ range $paginator.Pages }}
-  <li>
-    <span class="date">{{ .Date.Format "2006-01-02" }}</span>
-    <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-  </li>
+{{ range $paginator.Pages.GroupByDate "2006" }}
+<h3>{{ .Key }}</h3>
+<ul>
+{{ range .Pages }}
+<li><small><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01-02" }}</time></small> <a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
 {{ end }}
 </ul>
-
+{{ end }}
 {{ partial "pagination.html" $paginator }}
 {{ end }}
