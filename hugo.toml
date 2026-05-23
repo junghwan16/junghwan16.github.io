@@ -37,7 +37,7 @@ enableRobotsTXT = true
           inline = [["$", "$"]]
 
   [markup.highlight]
-    noClasses = false
+    codeFences = false
 
   [markup.tableOfContents]
     startLevel = 2

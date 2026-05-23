@@ -13,11 +13,6 @@
 {{ $style := resources.Get "css/style.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ $style.RelPermalink }}">
 
-{{ $syntaxLight := resources.Get "css/syntax-light.css" | minify | fingerprint }}
-{{ $syntaxDark := resources.Get "css/syntax-dark.css" | minify | fingerprint }}
-<link rel="stylesheet" href="{{ $syntaxLight.RelPermalink }}" media="(prefers-color-scheme: light)">
-<link rel="stylesheet" href="{{ $syntaxDark.RelPermalink }}" media="(prefers-color-scheme: dark)">
-
 {{ with .OutputFormats.Get "RSS" }}
 <link rel="alternate" type="application/rss+xml" title="{{ $.Site.Title }}" href="{{ .RelPermalink }}">
 {{ end }}
