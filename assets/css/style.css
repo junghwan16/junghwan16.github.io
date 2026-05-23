@@ -27,7 +27,11 @@
   }
 }
 
-html { color-scheme: light dark; }
+html {
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;  /* iOS landscape inflation 방지 */
+  text-size-adjust: 100%;
+}
 
 body {
   max-width: 36em;
@@ -47,6 +51,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.06);
 }
 
 p { margin: 1.1em 0; }
@@ -130,3 +135,34 @@ header strong a { text-decoration: none; }
 
 footer { color: var(--muted); }
 footer a { color: var(--muted); }
+
+/* 모바일 */
+@media (max-width: 600px) {
+  body {
+    margin: 1.5rem auto;
+    padding: 0 1rem;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  h1 { font-size: 1.4em; }
+  h2 { font-size: 1.2em; }
+  h3 { font-size: 1.05em; }
+  pre {
+    /* 가장자리 끝까지 펼치기 — 좁은 화면에서 가독성 ↑ */
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 0.8em 1rem;
+    border-radius: 0;
+    font-size: 0.82em;
+  }
+  blockquote {
+    margin-left: 0;
+    padding-left: 0.8em;
+  }
+  /* 표는 가로 스크롤 가능하게 */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
