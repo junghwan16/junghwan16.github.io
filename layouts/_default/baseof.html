@@ -7,11 +7,7 @@
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
   <header>
     <nav aria-label="메인 메뉴">
-      <div class="nav-left">
-        <a href="{{ "/" | relURL }}" class="site-title">{{ .Site.Title }}</a>
-        <span class="site-desc">{{ .Site.Params.description }}</span>
-      </div>
-      {{ partial "search.html" . }}
+      <a href="{{ "/" | relURL }}" class="site-title">{{ .Site.Title }}</a>
     </nav>
   </header>
   <main id="main-content">

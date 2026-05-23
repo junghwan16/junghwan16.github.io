@@ -19,11 +19,6 @@
   <li>
     <span class="date">{{ .Date.Format "2006-01-02" }}</span>
     <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-    {{ with .Params.categories }}
-    <span class="post-categories">
-      {{ range . }}<span class="cat">{{ . }}</span>{{ end }}
-    </span>
-    {{ end }}
   </li>
 {{ end }}
 </ul>

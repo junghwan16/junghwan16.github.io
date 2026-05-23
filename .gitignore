@@ -5,3 +5,4 @@ resources/_gen/
 node_modules/
 quartz/
 .omc/
+.gstack/
