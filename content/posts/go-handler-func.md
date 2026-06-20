@@ -1,5 +1,5 @@
 ---
-title: "Go의 함수 타입과 http.HandlerFunc — 함수가 인터페이스가 되는 마법"
+title: "http.HandlerFunc는 함수에 메서드를 붙인 타입이다"
 url: "/backend/go/2026/05/23/go-handler-func/"
 date: 2026-05-23 10:00:00 +0900
 categories: [backend, go]
@@ -15,7 +15,7 @@ http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *htt
 
 `http.HandlerFunc(...)`가 왜 필요하지? 그냥 함수를 넘기면 안 되나? `ListenAndServe`의 시그니처를 보면 두 번째 인자는 `http.Handler` 인터페이스다. 함수를 인터페이스 자리에 넣는데 컴파일이 된다. 캐스팅 같기도 하고, 생성자 호출 같기도 하다.
 
-답은 둘 다 아니다. Go의 **함수 타입(named function type)**과 **메서드**가 만나면 함수가 인터페이스를 만족할 수 있다.
+답은 둘 다 아니다. Go의 **함수 타입(named function type)**과 **메서드**가 만나면 함수도 인터페이스를 만족할 수 있다.
 
 ---
 
@@ -206,10 +206,10 @@ http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *htt
 2. `http.HandlerFunc(...)`로 타입 변환한다 — 이제 `ServeHTTP` 메서드가 붙어 `Handler` 인터페이스를 만족한다.
 3. `ListenAndServe`에 `Handler`로 넘긴다.
 
-핵심은 세 가지다.
+정리하면 세 가지다.
 
 - 함수 시그니처에도 이름(타입)을 붙일 수 있다.
 - 그 타입에 메서드를 붙일 수 있다.
 - 메서드가 인터페이스 요건을 충족하면, 그 함수는 인터페이스가 된다.
 
-Go의 타입 시스템이 가진 단순한 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 자연스럽게 떨어진다. 처음에는 마법처럼 보이지만, 한 번 분해해서 보면 그냥 타입과 메서드일 뿐이다.
+Go의 타입 시스템이 가진 단순한 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 자연스럽게 떨어진다. 한 번 분해해서 보면 타입과 메서드의 조합일 뿐이다.
