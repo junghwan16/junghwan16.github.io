@@ -1,0 +1,27 @@
+{{ define "main" }}
+<header class="list-header">
+<h1>{{ .Title }}</h1>
+</header>
+
+{{ $labels := dict
+  "ad-tech" "ad-tech"
+  "ai" "AI"
+  "cs" "CS"
+  "datadog" "Datadog"
+  "devops" "DevOps"
+  "go" "Go"
+  "mmp" "MMP"
+  "mysql" "MySQL"
+  "openrtb" "OpenRTB"
+  "redis" "Redis"
+}}
+<ul class="term-list">
+{{ range .Data.Terms.Alphabetical }}
+{{ $label := or (index $labels (lower .Page.Title)) .Page.Title }}
+<li>
+<a href="{{ .Page.RelPermalink }}">{{ $label }}</a>
+<span>{{ .Count }}</span>
+</li>
+{{ end }}
+</ul>
+{{ end }}
