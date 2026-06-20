@@ -1,12 +1,33 @@
 {{ define "main" }}
+<section class="home-intro" aria-labelledby="home-title">
+<h1 id="home-title">{{ .Site.Title }}</h1>
+<p>{{ .Site.Params.description }}</p>
+</section>
+
 {{ $paginator := .Paginate (where site.RegularPages "Section" "posts") }}
-{{ range $paginator.Pages.GroupByDate "2006-01" }}
-<h2>{{ .Key }}</h2>
-<ul>
+<div class="post-groups">
+{{ range $paginator.Pages.GroupByDate "2006.01" }}
+<section class="post-group" aria-labelledby="month-{{ .Key | urlize }}">
+<h2 id="month-{{ .Key | urlize }}">{{ .Key }}</h2>
+<ol class="post-list">
 {{ range .Pages }}
-<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+<li class="post-list__item">
+<article>
+<h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+<p class="post-list__summary">{{ .Summary | plainify | truncate 118 }}</p>
+<div class="post-meta">
+<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+{{ with .Params.categories }}
+<span aria-hidden="true">/</span>
+{{ range first 2 . }}<a href="{{ (printf "/categories/%s/" (. | urlize)) | relURL }}">{{ . }}</a>{{ end }}
 {{ end }}
-</ul>
+</div>
+</article>
+</li>
 {{ end }}
+</ol>
+</section>
+{{ end }}
+</div>
 {{ partial "pagination.html" $paginator }}
 {{ end }}

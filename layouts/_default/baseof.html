@@ -1,22 +1,26 @@
 <!DOCTYPE html>
-<html lang="{{ .Site.LanguageCode }}">
+<html lang="{{ .Site.Language.Locale }}">
 <head>
 {{ partial "head.html" . }}
 </head>
 <body>
-<header>
-<strong><a href="{{ "/" | relURL }}">{{ .Site.Title }}</a></strong>
+<header class="site-header">
+<div class="site-header__inner">
+<a class="site-title" href="{{ "/" | relURL }}">{{ .Site.Title }}</a>
+<nav class="site-nav" aria-label="Primary">
+<a href="{{ "/" | relURL }}">Posts</a>
+<a href="{{ "/categories/" | relURL }}">Categories</a>
+<a href="{{ "/index.xml" | relURL }}">RSS</a>
+</nav>
+</div>
 </header>
-<hr>
-<main>
+<main class="site-main">
 {{ block "main" . }}{{ end }}
 </main>
-<hr>
-<footer>
+<footer class="site-footer">
 <small>
 &copy; {{ now.Year }} {{ .Site.Title }} ·
-<a href="https://github.com/junghwan16">github</a> ·
-<a href="{{ "/index.xml" | relURL }}">rss</a>
+<a href="https://github.com/junghwan16">GitHub</a>
 </small>
 </footer>
 </body>

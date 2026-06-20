@@ -3,17 +3,30 @@
 {{ if .Params.mermaid }}{{ partial "mermaid.html" . }}{{ end }}
 
 <article>
+<header class="post-header">
 <h1>{{ .Title }}</h1>
-<p><small><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time></small></p>
+<div class="post-meta">
+<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+{{ with .Params.categories }}
+<span aria-hidden="true">/</span>
+{{ range . }}<a href="{{ (printf "/categories/%s/" (. | urlize)) | relURL }}">{{ . }}</a>{{ end }}
+{{ end }}
+</div>
+</header>
+{{ if and (gt .WordCount 900) (ne .Params.toc false) }}
+<nav class="toc" aria-label="Table of contents">
+<strong>목차</strong>
+{{ .TableOfContents }}
+</nav>
+{{ end }}
+<div class="post-content">
 {{ .Content }}
+</div>
 </article>
 
-<nav>
-<small>
-{{ with .PrevInSection }}<a href="{{ .RelPermalink }}">← {{ .Title }}</a>{{ end }}
-{{ if and .PrevInSection .NextInSection }} · {{ end }}
-{{ with .NextInSection }}<a href="{{ .RelPermalink }}">{{ .Title }} →</a>{{ end }}
-</small>
+<nav class="post-nav" aria-label="Post navigation">
+{{ with .PrevInSection }}<a class="post-nav__item" href="{{ .RelPermalink }}"><span>이전 글</span>{{ .Title }}</a>{{ end }}
+{{ with .NextInSection }}<a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}"><span>다음 글</span>{{ .Title }}</a>{{ end }}
 </nav>
 
 {{ partial "giscus.html" . }}
