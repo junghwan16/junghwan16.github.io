@@ -1,12 +1,12 @@
 ---
-title: "Kafka vs RabbitMQ 핵심 개념 정리"
+title: "Kafka와 RabbitMQ는 메시지를 다르게 바라본다"
 url: "/backend/messaging/2026/01/30/kafka-vs-rabbitmq/"
 date: 2026-01-30 10:00:00 +0900
 categories: [backend, messaging]
 mermaid: true
 ---
 
-메시지 브로커 선택은 시스템 설계에서 중요한 결정이다. Kafka와 RabbitMQ의 차이를 개념부터 실전 패턴까지 정리했다.
+Kafka와 RabbitMQ는 둘 다 메시지 브로커로 묶이지만, 출발점이 다르다. RabbitMQ는 메시지를 소비자에게 전달하는 큐에 가깝고, Kafka는 메시지를 오래 남겨두는 로그에 가깝다. 이 차이를 놓치면 처리량, 재처리, 라우팅, 장애 복구 판단이 계속 꼬인다.
 
 ## 아키텍처 차이
 
@@ -48,7 +48,7 @@ flowchart LR
 
 ## RabbitMQ: Exchange와 Queue
 
-**복잡한 라우팅**을 구현하는 핵심 요소들이다.
+RabbitMQ의 라우팅은 Exchange와 Queue를 분리해서 이해해야 한다.
 
 ```
 Producer -> [Exchange] --binding--> [에러 로그 큐] --> 알림 서비스
@@ -109,7 +109,7 @@ flowchart TD
 - 정산 그룹: 3대가 이벤트를 **나눠서** 처리 (한 이벤트는 딱 한 대만)
 - 분석 그룹: 별도 그룹이라 **같은 이벤트를 또 받음**
 
-**핵심 규칙**
+규칙은 이렇다.
 - **같은 Consumer Group 내에서는** -> 이벤트를 나눠 가짐 (중복 처리 방지)
 - **다른 Consumer Group끼리는** -> 같은 이벤트를 각자 받음
 
@@ -155,7 +155,7 @@ hash(ad_id) % 파티션_수  # -> 해당 Partition으로
 
 ## 전달 보장 (Delivery Guarantees)
 
-분산 시스템에서 메시지를 얼마나 확실하게 처리할 것인지에 대한 약속이다.
+전달 보장은 "메시지를 몇 번 처리할 수 있는가"에 대한 약속이다. 이름은 짧지만, 실제로는 장애와 재시도 정책이 함께 따라온다.
 
 | 보장 수준 | 메시지 유실 | 메시지 중복 | 사용 예시 |
 |-----------|-----------|-----------|----------|
@@ -180,7 +180,7 @@ Producer: "Ack 안 왔네? 다시 보낸다!"
 
 ### Exactly-once (정확히 한 번)
 
-가장 어렵다. 유실도 없고 중복도 없다.
+제약이 많다. 유실도 없고 중복도 없다.
 
 - **Kafka**: 멱등성 프로듀서(`enable.idempotence=true`)와 트랜잭션으로 **Kafka-to-Kafka 파이프라인**(consume-transform-produce)에서 보장. 외부 시스템(DB, API)과의 exactly-once는 별도 멱등성 처리가 필요하다
 - **RabbitMQ**: 기본 미지원. 컨슈머단에서 중복 처리 방지 로직(Idempotency) 구현 필요
@@ -243,7 +243,7 @@ Worker: PDF 생성 실패 -> ACK 안 보냄 -> 메시지 자동 재전달
 
 ### Kafka: 직접 구현
 
-Kafka는 "dumb pipes, smart endpoints" 철학. 브로커는 append-only 로그로 단순하게 유지하고, 에러 처리는 클라이언트가 담당.
+Kafka는 "dumb pipes, smart endpoints" 철학. 브로커는 append-only 로그를 맡고, 에러 처리는 클라이언트가 담당.
 
 ```
 [ad-events] --> Consumer --> 외부 API 호출
@@ -273,7 +273,7 @@ producer.send("ad-events-dlq", key=original_key, value=original_value, headers=h
 
 ### 순서 보장 DLQ 패턴
 
-광고 이벤트처럼 순서가 중요한 경우:
+광고 이벤트처럼 순서가 필요한 경우:
 
 ```
 offset 10: "광고 123 시작" -> 실패 -> DLQ로
@@ -281,7 +281,7 @@ offset 11: "광고 123 종료" -> ???
 offset 12: "광고 123 시작" -> ???
 ```
 
-순서가 중요하면 offset 11, 12도 처리하면 안 된다.
+순서가 깨지면 안 되는 흐름에서는 offset 11, 12도 처리하면 안 된다.
 
 ```python
 blocked_ad_ids: set[str] = set()
@@ -373,12 +373,12 @@ Kafka는 `linger.ms=5`, `batch.size=16KB` 기본값 기준. 배치를 줄이면 
 
 ---
 
-## 정리 비교표
+## 선택 기준표
 
 | 항목 | Kafka | RabbitMQ |
 |---|---|---|
 | 메시지 보관 | 디스크에 유지 (재처리 가능) | 소비되면 삭제 |
-| 여러 시스템이 같은 메시지 필요 | Consumer Group으로 자연스럽게 | Exchange 설정 필요 |
+| 여러 시스템이 같은 메시지 필요 | Consumer Group으로 처리 | Exchange 설정 필요 |
 | 순서 보장 | Partition 내 보장 | 기본 보장 (단일 큐) |
 | 병렬 처리 확장 | Partition 수가 상한선 | Worker 수 자유롭게 |
 | 작업 단위 재시도 | DLQ 패턴 직접 구현 | ACK 기반으로 간단 |
@@ -418,4 +418,3 @@ Redis Streams는 `XREADGROUP`/`XACK`/`XAUTOCLAIM`으로 "작은 Kafka" 역할을
 - [RabbitMQ Quorum Queues](https://www.rabbitmq.com/docs/quorum-queues) — Raft 기반 디스크 복제 큐
 - [KIP-98 Exactly Once Delivery](https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging) — Kafka exactly-once 설계
 - [Apache Kafka 4.0 Release](https://kafka.apache.org/blog#apache_kafka_400_release_announcement) — Zookeeper 제거 확정
-

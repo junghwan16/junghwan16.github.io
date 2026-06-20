@@ -1,15 +1,13 @@
 ---
-title: "gnhf(Good Night Have Fun)"
+title: "gnhf: 재워두고 돌리는 에이전트 루프"
 url: "/backend/ai/2026/06/03/gnhf/introduce"
 date: 2026-06-03 16:20:00 +0900
 categories: [ai, agent]
 ---
 
-오늘은 gnhf 라는 매우 사용감이 좋은 ralph-loop like 툴을 소개하려고 한다.
+gnhf는 목표 하나를 던져두면 에이전트를 반복 실행하고, 성공한 지점마다 커밋을 남기는 CLI 도구다. 이름처럼 자기 전에 걸어두고 아침에 결과를 확인하는 사용성을 노린다.
 
-gnhf는 이름(Good Night, Have Fun) 그대로 명령어를 실행해 두고 자고 일어나면 알아서 작업을 완수해 두는 에이전트 오케스트레이터다. ralph나 karpathy의 autoresearch 스타일의 사상을 CLI 환경에서 직관적이고 안전하게 구현했다.
-
-개인적으로 ralph loop 시리즈 중 그냥 제일 덜 복잡하게 쓸 수 있고 이뻐서 맘에 든다.
+ralph loop나 karpathy의 autoresearch 스타일을 CLI에서 설정을 덜 쓰고 돌릴 수 있게 만든 쪽에 가깝다. 개인적으로는 비슷한 루프 도구 중 설정 부담이 적어서 마음에 들었다.
 
 ---
 
@@ -42,7 +40,7 @@ $ gnhf "reduce complexity of the codebase without changing functionality" \
 
 ---
 
-## 핵심 메커니즘
+## 동작 방식
 
 1. **점진적 커밋 및 롤백 (Incremental Commits)**
 이터레이션이 성공하면 `gnhf <iteration>: <summary>` 형태로 자동 커밋을 생성한다. 실패하면 `git reset --hard`로 롤백하므로 중간에 끊기더라도 성공한 지점까지의 작업은 보존된다.
@@ -51,7 +49,7 @@ $ gnhf "reduce complexity of the codebase without changing functionality" \
 3. **공유 메모리 (`notes.md`)**
 이전 루프의 기록을 `notes.md`에 누적하여 다음 이터레이션의 컨텍스트로 주입한다. 덕분에 작업의 흐름이 끊기지 않는다.
 4. **로컬 메타데이터 격리**
-모든 실행 로그와 상태는 `.gnhf/runs/`에 저장되며 자동으로 git 무시(`\.gitignore`) 처리되어 코드베이스가 깔끔하게 유지된다.
+모든 실행 로그와 상태는 `.gnhf/runs/`에 저장되며 자동으로 git 무시(`\.gitignore`) 처리된다.
 
 ---
 

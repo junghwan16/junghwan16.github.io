@@ -62,7 +62,7 @@ type Handler interface {
 }
 ```
 
-정리하면 — `HandlerFunc`는 `ServeHTTP` 메서드를 가지므로 `Handler` 인터페이스를 만족한다. 함수가 인터페이스가 됐다.
+`HandlerFunc`는 `ServeHTTP` 메서드를 가지므로 `Handler` 인터페이스를 만족한다. 함수 본문은 그대로지만, 이름 붙은 타입이 되면서 메서드 집합이 생긴다.
 
 ---
 
@@ -129,7 +129,7 @@ http.ListenAndServe(":8080", helloHandler{})
 `HandleFunc`(동사)는 라우트를 등록하는 함수다. 내부적으로 인자를 `HandlerFunc`로 변환해서 mux에 넣는다.
 
 ```go
-// 단순 등록
+// 함수로 라우트 등록
 http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("hello"))
 })
@@ -186,11 +186,11 @@ type Dir string
 func (d Dir) Open(name string) (File, error) { /* ... */ }
 ```
 
-`net/http`에서는 `HandlerFunc`가 가장 눈에 띄는 사례지만, 패턴 자체는 일반적이다. 인터페이스 메서드가 하나뿐이라면 함수 타입으로 그 인터페이스를 만족시킬 수 있다.
+`net/http`에서는 `HandlerFunc`가 대표 사례지만, 같은 방식은 다른 단일 메서드 인터페이스에도 적용된다. 함수 타입에 필요한 메서드를 붙이면 된다.
 
 ---
 
-## 정리
+## 다시 처음 코드로
 
 처음 봤던 코드를 다시 보자.
 
@@ -206,10 +206,10 @@ http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *htt
 2. `http.HandlerFunc(...)`로 타입 변환한다 — 이제 `ServeHTTP` 메서드가 붙어 `Handler` 인터페이스를 만족한다.
 3. `ListenAndServe`에 `Handler`로 넘긴다.
 
-정리하면 세 가지다.
+여기서 쓰인 규칙은 세 가지다.
 
 - 함수 시그니처에도 이름(타입)을 붙일 수 있다.
 - 그 타입에 메서드를 붙일 수 있다.
 - 메서드가 인터페이스 요건을 충족하면, 그 함수는 인터페이스가 된다.
 
-Go의 타입 시스템이 가진 단순한 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 자연스럽게 떨어진다. 한 번 분해해서 보면 타입과 메서드의 조합일 뿐이다.
+Go의 타입 시스템이 가진 작은 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 설명된다. 한 번 분해해서 보면 타입과 메서드의 조합일 뿐이다.

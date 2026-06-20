@@ -1,5 +1,5 @@
 ---
-title: "쿠버네티스는 어떻게 서버 한 대를 '노드'로 인식하는가"
+title: "쿠버네티스 노드는 control plane이 찾아내는 게 아니다"
 url: "/infra/kubernetes/2026/05/17/kubernetes-node-registration/"
 date: 2026-05-17 10:00:00 +0900
 categories: [infra, kubernetes]
@@ -9,15 +9,15 @@ categories: [infra, kubernetes]
 
 쿠버네티스는 내 EC2 인스턴스 ID도, AWS 계정도 모른다. 그런데 어떻게 "이 서버가 내 클러스터의 노드"라는 걸 알까? 누가 등록하는 걸까? control plane이 네트워크를 스캔해서 살아 있는 서버를 찾는 걸까?
 
-답부터 말하면 **반대**다. control plane은 worker를 찾으러 다니지 않는다. worker가 스스로 찾아와서 "저 등록할게요" 하고 손을 든다. 그리고 이 비대칭성 — **모든 게 worker 쪽에서 시작된다** — 이 쿠버네티스 아키텍처의 핵심 중 하나다.
+답부터 말하면 반대다. control plane은 worker를 찾으러 다니지 않는다. worker가 스스로 찾아와서 "저 등록할게요" 하고 손을 든다. 이 비대칭성이 노드 등록을 이해하는 출발점이다.
 
-이 글에서는 그 "손을 드는 과정"을 한 단계씩 따라간다.
+아래에서는 그 "손을 드는 과정"을 한 단계씩 따라간다.
 
 ---
 
 ## 1. "노드"는 서버가 아니다, 등록된 실행 환경이다
 
-운영 환경에서 노드는 보통 서버 인스턴스다. EC2, GCE VM, 온프레미스 물리 서버, 사내 VM 같은 것들. 그래서 "서버 = 노드"라고 생각하기 쉽다.
+운영 환경에서 노드는 보통 서버 인스턴스다. EC2, GCE VM, 온프레미스 물리 서버, 사내 VM 같은 것들. 그래서 "서버 = 노드"라고 생각하게 된다.
 
 하지만 쿠버네티스 관점에서 보면 서버 자체는 노드가 아니다. 그 서버 위에 필요한 구성요소가 깔리고 **API Server에 등록되었을 때** 비로소 Node가 된다.
 
@@ -32,13 +32,13 @@ categories: [infra, kubernetes]
 
 즉, Node는 "서버 그 자체"라기보다 **클러스터에 등록된 서버 실행 환경**이다. 등록이 풀리면 서버는 그대로 살아 있어도 노드가 아니게 된다. 반대로 같은 서버에 다른 kubeconfig를 깔면 다른 클러스터의 노드가 된다.
 
-이 구분이 중요한 이유는, "노드를 추가한다"는 작업의 정체가 곧 **"이 서버에서 kubelet을 API Server에 붙인다"**라는 뜻이기 때문이다.
+이 구분이 필요한 이유는, "노드를 추가한다"는 작업의 정체가 곧 **"이 서버에서 kubelet을 API Server에 붙인다"**라는 뜻이기 때문이다.
 
 ---
 
 ## 2. 세 대의 리눅스 서버에서 시작해보자
 
-가장 와닿는 예시로, 깡통 서버 3대로 클러스터를 만들어본다.
+예시로, 깡통 서버 3대로 클러스터를 만들어본다.
 
 ```
 server-1   10.0.0.11
@@ -144,7 +144,7 @@ status:
 
 ## 5. kubeadm으로 손에 잡히게 보기
 
-이론을 한 번 코드로 내리면 명확해진다. server-1에서 control plane 초기화.
+이론을 한 번 코드로 내리면 흐름이 보인다. server-1에서 control plane 초기화.
 
 ```bash
 sudo kubeadm init --apiserver-advertise-address=10.0.0.11
@@ -175,7 +175,7 @@ sudo kubeadm join 10.0.0.11:6443 \
 - `--token`: 위에서 말한 부트스트랩 토큰. 이걸로 첫 핸드셰이크를 한다.
 - `--discovery-token-ca-cert-hash`: worker가 **이상한 API Server에 속지 않기 위해** 사용한다. "내가 붙으려는 API Server의 CA 인증서 해시가 이 값과 일치해야 한다"는 검증값이다.
 
-이 두 개가 짝을 이루는 게 중요하다. 토큰만 있으면 worker가 가짜 API Server에 붙을 수 있고, 해시만 있으면 정작 등록을 할 수 없다.
+이 두 개는 짝으로 필요하다. 토큰만 있으면 worker가 가짜 API Server에 붙을 수 있고, 해시만 있으면 정작 등록을 할 수 없다.
 
 이 명령을 server-2, server-3에서 실행하면 각 서버의 kubelet이 위의 TLS bootstrap을 거쳐 API Server에 자기를 등록한다.
 
@@ -247,25 +247,25 @@ spec.nodeName ─┘
 server-2 kubelet  → containerd  → 컨테이너 실행
 ```
 
-여기서 핵심은, control plane이 server-2에게 **명령을 push하지 않는다**는 점이다. server-2의 kubelet이 API Server를 계속 **watch**하면서 "내 노드 이름이 박힌 Pod이 새로 생겼는가?"를 보고 있다가, 자기 일이 생기면 가져다 실행한다.
+여기서 볼 부분은, control plane이 server-2에게 **명령을 push하지 않는다**는 점이다. server-2의 kubelet이 API Server를 계속 **watch**하면서 "내 노드 이름이 박힌 Pod이 새로 생겼는가?"를 보고 있다가, 자기 일이 생기면 가져다 실행한다.
 
 이 모델이 주는 효과가 꽤 크다.
 
-- **방화벽이 단순해진다.** worker → control plane 방향(6443 포트)만 열어두면 된다. control plane → worker 방향은 (`kubectl exec`/`logs` 같은 일부 기능 빼면) 필요 없다. 사내망 / 사설 서브넷에 worker를 두기 좋다.
+- **방화벽 경로가 줄어든다.** worker → control plane 방향(6443 포트)만 열어두면 된다. control plane → worker 방향은 (`kubectl exec`/`logs` 같은 일부 기능 빼면) 필요 없다. 사내망 / 사설 서브넷에 worker를 두기 좋다.
 - **장애 격리.** control plane이 잠깐 죽어도 worker에서 이미 떠 있는 Pod은 계속 돈다. kubelet은 마지막으로 본 상태를 가지고 컨테이너를 유지한다.
 - **확장성.** "control plane이 수천 개 worker에 명령을 뿌리는" 구조라면 fan-out이 병목이 된다. 반대로 "각 worker가 자기 일만 본다"는 구조는 worker 수가 늘어도 control plane 부담이 선형으로만 증가한다.
-- **재시도 / 일관성이 깔끔하다.** 명령을 "보냈는데 도착 못 했을 때" 같은 분산 시스템 고질병이 없다. 항상 etcd의 desired state가 정답이고, worker는 그걸 보고 reconcile한다.
+- **재시도 지점이 줄어든다.** 명령을 "보냈는데 도착 못 했을 때" 같은 상태를 따로 추적하지 않는다. etcd의 desired state가 기준이고, worker는 그걸 보고 reconcile한다.
 
-이걸 한 줄로 요약하면, 쿠버네티스는 **명령 기반(imperative push) 시스템이 아니라 상태 기반(declarative pull) 시스템**이다. 등록도 worker가 자기 의지로 한다. 실행도 worker가 자기 의지로 한다.
+한 줄로 줄이면, 쿠버네티스는 **명령 기반(imperative push) 시스템이 아니라 상태 기반(declarative pull) 시스템**이다. 등록도 worker가 자기 의지로 한다. 실행도 worker가 자기 의지로 한다.
 
 ---
 
-## 정리
+## 남는 그림
 
 - Node는 서버 그 자체가 아니라 **클러스터에 등록된 서버 실행 환경**이다.
 - 등록의 주체는 **각 서버의 kubelet**이다. control plane이 노드를 찾으러 다니지 않는다.
 - 첫 등록은 **부트스트랩 토큰 → TLS bootstrap → 정식 인증서**의 흐름으로 이뤄진다. `kubeadm join`이 이 절차를 한 줄로 감싼 것일 뿐이다.
 - 클라우드 환경에서는 인스턴스 부팅 시점에 위 과정을 자동화한다. 본질은 같다.
-- 등록 이후의 Pod 실행도 **kubelet이 API Server를 watch하는 pull 모델**이다. 이 구조 때문에 방화벽, 장애 격리, 확장성이 모두 단순해진다.
+- 등록 이후의 Pod 실행도 **kubelet이 API Server를 watch하는 pull 모델**이다. 이 구조 덕분에 control plane이 worker로 명령을 밀어 넣지 않아도 된다.
 
 `kubectl get nodes`의 한 줄은 결국, "어떤 kubelet이 자기를 등록하고, 아직 heartbeat를 보내고 있다"는 사실의 표현이다.

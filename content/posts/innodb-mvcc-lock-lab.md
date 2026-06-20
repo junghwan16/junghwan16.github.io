@@ -1,5 +1,5 @@
 ---
-title: "InnoDB 트랜잭션 실습: MVCC, 격리 수준, 락을 직접 눈으로 확인하기"
+title: "터미널 두 개로 InnoDB MVCC와 락 확인하기"
 url: "/backend/mysql/2026/03/20/innodb-mvcc-lock-lab/"
 date: 2026-03-20 10:00:00 +0900
 categories: [backend, mysql]
@@ -148,9 +148,9 @@ flowchart LR
 |---|---|---|
 | 읽기 방식 | Snapshot Read (MVCC 스냅샷) | Current Read (최신 커밋 값) |
 | 락 | 없음 | X Lock (배타 락) |
-| 용도 | 단순 조회 | 수정 전 조회, 경합 방지 |
+| 용도 | 읽기 전용 조회 | 수정 전 조회, 경합 방지 |
 
-FOR UPDATE가 최신 값을 읽어야 하는 이유는 명확하다. 스냅샷(700)을 기준으로 UPDATE하면, 세션 B가 커밋한 600이 덮어씌워져서 Lost Update가 발생한다.
+FOR UPDATE가 최신 값을 읽어야 하는 데에는 이유가 있다. 스냅샷(700)을 기준으로 UPDATE하면, 세션 B가 커밋한 600이 덮어씌워져서 Lost Update가 발생한다.
 
 ### X Lock의 차단 범위
 
@@ -163,7 +163,7 @@ FOR UPDATE로 X Lock을 잡으면, 다른 세션에서 같은 행에 대해:
 | SELECT ... FOR UPDATE | **대기** | X Lock 필요, X Lock과 충돌 |
 | UPDATE / DELETE | **대기** | X Lock 필요, X Lock과 충돌 |
 
-"읽기는 쓰기를 막지 않고, 쓰기는 읽기를 막지 않는다." MVCC의 핵심이다.
+"읽기는 쓰기를 막지 않고, 쓰기는 읽기를 막지 않는다." 이 문장이 MVCC의 구조를 잘 보여준다.
 
 ---
 
@@ -235,7 +235,7 @@ sequenceDiagram
     Note over DB: 최종: 300 ✅
 ```
 
-핵심은 **락이 걸리는 시점**이다:
+볼 지점은 **락이 걸리는 시점**이다:
 
 | 방식 | 락 시점 | 결과 |
 |---|---|---|
@@ -277,8 +277,8 @@ DB가 직접 강제하므로 애플리케이션이 체크를 빼먹어도 안전
 
 | 방식 | 장점 | 단점 |
 |---|---|---|
-| FOR UPDATE + 앱 체크 | 복잡한 비즈니스 로직 가능 | 앱이 빼먹으면 뚫림 |
-| WHERE 절 조건 | DB가 강제, 확실함 | 단순 조건만 가능 |
+| FOR UPDATE + 앱 체크 | 여러 단계의 비즈니스 로직 가능 | 앱이 빼먹으면 뚫림 |
+| WHERE 절 조건 | DB가 강제, 확실함 | WHERE 조건만 가능 |
 | **둘 다 겹쳐 쓰기 (실무)** | 벨트 + 멜빵 | — |
 
 ---
@@ -319,9 +319,9 @@ READ COMMITTED와 REPEATABLE READ의 차이도 여기서 나온다. READ COMMITT
 
 ---
 
-## 정리
+## 관찰 결과
 
-| 개념 | 핵심 |
+| 개념 | 관찰 |
 |---|---|
 | MVCC | undo log 체인으로 다중 버전 관리. 읽기와 쓰기가 서로 차단하지 않음 |
 | READ COMMITTED | 매 SELECT마다 새 스냅샷. Non-Repeatable Read 발생 가능 |

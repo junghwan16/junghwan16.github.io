@@ -1,5 +1,5 @@
 ---
-title: "HTTP 요청 압축: 클라이언트가 보내는 Body도 gzip으로 줄일 수 있을까"
+title: "요청 Body도 gzip으로 보낼 수 있을까"
 url: "/backend/network/2026/03/08/http-request-body-compression/"
 date: 2026-03-08 09:00:00 +0900
 categories: [backend, network]
@@ -26,7 +26,7 @@ Content-Length: 1234
 
 ## 응답 압축과 뭐가 다른가
 
-구조는 비슷해 보이지만 핵심적인 차이가 있다: **협상 방식**이 다르다.
+구조는 비슷해 보이지만 협상 방식이 다르다.
 
 ### 응답 압축 — 사전 협상
 
@@ -37,7 +37,7 @@ Content-Length: 1234
     |<--- Content-Encoding: gzip ---------------|
 ```
 
-클라이언트가 먼저 "나 이런 압축 풀 수 있어"라고 알려주고, 서버가 그에 맞춰서 보낸다. 깔끔한 사전 협상이다.
+클라이언트가 먼저 "나 이런 압축 풀 수 있어"라고 알려주고, 서버가 그에 맞춰서 보낸다. 사전 협상이 있다.
 
 ### 요청 압축 — 사후 발견
 
@@ -53,7 +53,7 @@ Content-Length: 1234
 
 RFC 9110은 이 415 응답에 `Accept-Encoding` 헤더를 포함해서 "나는 이런 인코딩을 받을 수 있어"라고 알려줄 수 있도록 정의했다. 하지만 이건 사후 발견(backward discovery)이지, 사전 협상이 아니다.
 
-정리하면, 응답 압축은 사전 협상이 있고 요청 압축은 없다. 이게 핵심 차이다. 실무에서 클라이언트는 어떻게 서버가 압축을 지원하는지 아는가? **API 문서를 읽는다.**
+응답 압축은 사전 협상이 있고 요청 압축은 없다. 실무에서 클라이언트는 어떻게 서버가 압축을 지원하는지 아는가? 보통은 API 문서를 읽는다.
 
 ---
 
@@ -92,7 +92,7 @@ Nginx가 지원하지 않는다는 게 의외다. 응답 압축의 `gzip on;`은
 
 ## OpenRTB — 요청 압축이 실제로 쓰이는 곳
 
-요청 압축이 가장 활발하게 쓰이는 곳 중 하나가 **OpenRTB**(Real-Time Bidding)다.
+요청 압축이 자주 쓰이는 곳 중 하나가 **OpenRTB**(Real-Time Bidding)다.
 
 SSP(Supply-Side Platform)가 DSP(Demand-Side Platform)에게 bid request를 보낼 때, JSON payload를 gzip으로 압축해서 전송한다. 왜 이게 의미 있는가:
 
@@ -109,7 +109,7 @@ OpenRTB 2.5/2.6 스펙은 gzip 압축을 명시적으로 다룬다:
 
 실제로 Smaato, InMobi 같은 SSP는 모든 파트너에게 요청 압축을 필수로 적용하고, OpenX, Index Exchange, BidSwitch 등은 선택 사항으로 두고 담당자에게 연락해서 활성화하는 구조다. 모든 플랫폼이 `Accept-Encoding: gzip`은 항상 보내므로, DSP가 응답을 압축하는 건 언제든 가능하다.
 
-주의할 점: BidSwitch는 압축을 활성화한 후에도 **일부 요청이 비압축으로 올 수 있다**고 문서에 명시한다. DSP는 `Content-Encoding` 헤더 유무를 반드시 체크해서 분기해야 한다.
+주의할 점: BidSwitch는 압축을 활성화한 후에도 **일부 요청이 비압축으로 올 수 있다**고 문서에 명시한다. DSP는 `Content-Encoding` 헤더 유무를 체크해서 분기해야 한다.
 
 ---
 
@@ -146,12 +146,12 @@ func gzipRequestMiddleware(next http.Handler) http.Handler {
 }
 ```
 
-핵심 포인트:
+Go에서 처리할 때 볼 것:
 
 - `Content-Encoding: gzip`이면 `gzip.NewReader`로 감싸고, 아니면 그대로 통과시킨다
 - **`io.LimitReader`로 해제 크기를 제한**해서 decompression bomb을 방어한다
 - 헤더를 삭제하고 `ContentLength = -1`로 설정해서, 하위 핸들러는 압축을 신경 쓰지 않아도 된다
-- 이전 글에서 본 Go 클라이언트의 자동 디코딩 패턴과 비슷한 구조다 — body를 래퍼로 감싸고, 헤더를 정리해서 투명하게 만든다
+- 이전 글에서 본 Go 클라이언트의 자동 디코딩 패턴과 비슷한 구조다 — body를 래퍼로 감싸고, 헤더를 갱신해서 투명하게 만든다
 
 사용할 때는 핸들러를 감싸면 된다:
 
@@ -175,7 +175,7 @@ curl -X POST http://localhost:8080/bid \
 
 ---
 
-## 정리
+## 응답 압축과 다른 점
 
 | 구분 | 응답 압축 | 요청 압축 |
 |---|---|---|

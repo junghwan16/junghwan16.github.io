@@ -1,14 +1,14 @@
 ---
-title: "클라이언트의 IP를 알아내는 방법"
+title: "프록시 뒤에서 클라이언트 IP는 어디로 갔을까"
 url: "/backend/network/2026/02/07/client-ip-detection/"
 date: 2026-02-07 13:00:00 +0900
 categories: [backend, network]
 mermaid: true
 ---
 
-서버 개발을 하다보면 클라이언트의 IP를 알아야할 때가 있다. TCP 연결 자체가 IP 기반이니 쉬울 것 같지만, 프로덕션 환경은 여러 홉을 거치기 때문에 생각보다 간단하지 않다.
+서버 로그에 찍힌 IP를 봤는데 전부 ALB나 Nginx 주소인 경우가 있다. 클라이언트 IP가 필요해서 코드를 열어보면 `RemoteAddr`에는 바로 앞 프록시만 보인다. 프로덕션에서는 유저와 서버가 직접 TCP로 붙는 경우가 드물기 때문이다.
 
-두 가지 레이어로 나눠서 생각해야 한다:
+이 문제는 두 레이어를 나눠 봐야 한다.
 
 - **TCP 관점**: 지금 내 서버 소켓에 연결한 상대(바로 앞 홉)의 IP
 - **HTTP 관점**: 이 HTTP 요청을 처음 만든 원래 사용자의 IP
@@ -51,13 +51,13 @@ TCP 연결이 끊겨 다시 맺어지면, 원래 클라이언트 IP를 전달하
 
 ### 대표 헤더
 
-- `X-Forwarded-For` (XFF): Squid 캐싱 프록시에서 도입한 사실상 표준. 가장 널리 사용된다.
+- `X-Forwarded-For` (XFF): Squid 캐싱 프록시에서 도입한 사실상 표준. 널리 사용된다.
 - `Forwarded` ([RFC 7239](https://datatracker.ietf.org/doc/html/rfc7239)): XFF를 대체하기 위해 표준화된 헤더. `for`, `by`, `host`, `proto` 파라미터를 지원한다.
 - `X-Real-IP`: Nginx에서 주로 사용하는 비표준 헤더. 단일 IP만 담는다.
 
 ### X-Forwarded-For 동작 원리
 
-프록시가 여러 개일 때가 중요하다:
+프록시가 여러 개이면 순서가 결과를 바꾼다:
 
 ```
 유저 (203.0.113.50)
@@ -80,7 +80,7 @@ XFF 체인: client, proxy1, proxy2, ...
 
 ### 보안 함정: 클라이언트가 헤더를 조작할 수 있다
 
-[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 강조하는 핵심이다:
+[MDN 문서](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For)에서도 같은 경고를 한다:
 
 ```
 악의적 유저 (198.51.100.99)
@@ -226,7 +226,7 @@ host, _, _ := net.SplitHostPort(remoteAddr)
 
 ---
 
-## 요약
+## 남는 판단 기준
 
 ```mermaid
 flowchart TD

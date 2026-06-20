@@ -26,7 +26,7 @@ fmt.Println(oc == nil)      // false
 
 ## 인터페이스는 타입과 값을 함께 들고 있다
 
-Go 인터페이스 값은 단순한 포인터 하나가 아니다.
+Go 인터페이스 값은 포인터 하나가 아니다.
 
 개념적으로는 이렇게 볼 수 있다.
 
@@ -79,7 +79,7 @@ value = nil
 
 ## nil interface와 typed nil은 다르다
 
-둘을 나란히 보면 차이가 더 명확하다.
+둘을 나란히 보면 차이가 드러난다.
 
 ```mermaid
 flowchart TD
@@ -159,7 +159,7 @@ var oc orderCreator = real
 p3 := &oc
 ```
 
-이쯤 되면 nil 체크가 꽤 복잡해진다.
+이쯤 되면 nil 체크 지점이 늘어난다.
 
 ```go
 if creator == nil {
@@ -177,7 +177,7 @@ if *creator == nil {
 
 ## 메서드 호출도 불편해진다
 
-인터페이스 값을 필드로 두면 호출은 자연스럽다.
+인터페이스 값을 필드로 두면 호출 형태는 그대로다.
 
 ```go
 type Handler struct {
@@ -214,7 +214,7 @@ func (h *Handler) Serve(ctx context.Context, cmd orders.CreateOrderCommand) erro
 }
 ```
 
-코드가 어색해지고, nil 상태도 복잡해진다. 얻는 이득은 거의 없다.
+코드가 어색해지고, nil 상태를 볼 지점도 늘어난다. 얻는 이득은 거의 없다.
 
 ---
 
@@ -250,13 +250,13 @@ flowchart LR
     C["concrete 구현체<br/>&orders.OrderCreator{}"] --> I["인터페이스 값<br/>orderCreator"]
     I --> H["Handler field<br/>orderCreator orderCreator"]
 
-    Bad["*orderCreator"] -.-> X["nil 상태와 메서드 호출이 복잡해짐"]
+    Bad["*orderCreator"] -.-> X["nil 상태와 메서드 호출 지점이 늘어남"]
 ```
 
-정리하면 규칙은 단순하다.
+이 기준으로 두면 된다.
 
 - 인터페이스는 value로 받는다.
 - concrete 구현체는 필요하면 pointer로 넘긴다.
 - 인터페이스의 pointer는 거의 만들지 않는다.
 
-typed nil 문제를 완전히 피할 수는 없지만, 인터페이스 포인터를 만들지 않는 것만으로도 nil 상태를 훨씬 단순하게 유지할 수 있다.
+typed nil 문제를 완전히 없앨 수는 없지만, 인터페이스 포인터를 만들지 않으면 nil 상태를 추적할 곳이 줄어든다.

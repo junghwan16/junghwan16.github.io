@@ -7,7 +7,7 @@ categories: [backend, mysql]
 
 > 주문 목록 API가 느려졌다. 슬로우 쿼리 로그를 열어보니 `SELECT * FROM orders WHERE status = 'active' ORDER BY created_at DESC LIMIT 20`이 2초씩 걸린다. `EXPLAIN`을 찍었더니 Extra 컬럼에 `Using filesort`가 있다. 인덱스도 있는데 왜 느린 걸까?
 
-이 글을 읽으면서 "인덱스 leaf에 뭐가 저장돼 있다는 거지?" 싶다면, 먼저 [InnoDB의 Clustered Index와 Secondary Index 구조](/backend/mysql/innodb-clustered-secondary-indexes/)를 읽고 오자. Secondary index가 PK를 들고 있는 구조와 bookmark lookup을 이해하면, 이 글의 인덱스 설계 이야기가 훨씬 자연스럽게 읽힌다.
+이 글을 읽으면서 "인덱스 leaf에 뭐가 저장돼 있다는 거지?" 싶다면, 먼저 [InnoDB의 Clustered Index와 Secondary Index 구조](/backend/mysql/innodb-clustered-secondary-indexes/)를 읽고 오자. Secondary index가 PK를 들고 있는 구조와 bookmark lookup을 이해하면, 이 글의 인덱스 설계 이야기를 이어 읽을 수 있다.
 
 ---
 
@@ -80,7 +80,7 @@ LIMIT 20;
 
 ---
 
-## 핵심 원칙: WHERE 뒤에 ORDER BY
+## WHERE 뒤에 ORDER BY
 
 복합 인덱스를 설계할 때, **equality 조건 컬럼을 앞에, ORDER BY 컬럼을 뒤에** 배치한다.
 
@@ -113,7 +113,7 @@ idx_status_created의 leaf page (status, created_at 순으로 정렬됨)
 -- 쿼리:
 ORDER BY created_at, status   -- ✗ filesort
 ORDER BY created_at           -- ✗ filesort (status를 건너뜀)
-ORDER BY status, created_at   -- ✓ (하지만 WHERE status = ?가 있으면 ORDER BY created_at만으로 충분)
+ORDER BY status, created_at   -- ✓ (하지만 WHERE status = ?가 있으면 ORDER BY created_at만 보면 됨)
 ```
 
 ### 2. ASC/DESC 혼합
@@ -164,7 +164,7 @@ range 조건(`>`, `<`, `BETWEEN`)은 인덱스의 정렬 보장을 **끊는다**
 
 ---
 
-## 정리
+## 인덱스를 보기 전에 볼 것
 
 | 상황 | 해법 |
 |------|------|

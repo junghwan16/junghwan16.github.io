@@ -1,5 +1,5 @@
 ---
-title: "gatewayRoutes는 무슨 설정인가: Helm values에서 Istio VirtualService까지"
+title: "gatewayRoutes는 결국 VirtualService를 만든다"
 url: "/infra/kubernetes/2026/02/11/gateway-routes-istio-virtualservice/"
 date: 2026-02-11 23:00:00 +0900
 categories: [infra, kubernetes]
@@ -11,7 +11,7 @@ categories: [infra, kubernetes]
 
 ## gatewayRoutes의 역할
 
-`gatewayRoutes`는 **외부 트래픽이 클러스터 내부 서비스에 도달하기 위한 라우팅 규칙**을 정의하는 Helm values 설정이다. 이것은 Istio 공식 개념이 아니라 **특정 Helm chart에서 정의한 커스텀 values 키**다. chart마다 이름이나 구조가 다를 수 있으므로, 사용 중인 chart의 template을 반드시 확인해야 한다. 이 값을 설정하면 다음과 같은 흐름으로 적용된다:
+`gatewayRoutes`는 **외부 트래픽이 클러스터 내부 서비스에 도달하기 위한 라우팅 규칙**을 정의하는 Helm values 설정이다. 이것은 Istio 공식 개념이 아니라 **특정 Helm chart에서 정의한 커스텀 values 키**다. chart마다 이름이나 구조가 다를 수 있으므로, 사용 중인 chart의 template을 확인해야 한다. 이 값을 설정하면 다음과 같은 흐름으로 적용된다:
 
 ```
 values.prod.yaml (gatewayRoutes)
@@ -69,7 +69,7 @@ gatewayRoutes를 이해하려면 VirtualService를 알아야 한다.
 - [공식 문서](https://istio.io/latest/docs/reference/config/networking/virtual-service/)
 - Traffic Management 하위 목록에 VirtualService가 있고, 자주 들었던 Sidecar도 같은 카테고리에 위치해 있다.
 
-**핵심 개념:** Istio의 VirtualService는 클라이언트가 특정 호스트(서비스)로 보낸 요청을 **실제로 어디로, 어떻게 보낼지** 결정하는 트래픽 라우팅 규칙의 집합이다. 요청이 호스트에 도달했을 때 적용할 규칙(매칭 조건)을 **순서대로 평가**하고, 조건에 맞는 경우 지정된 목적지(Destination)로 트래픽을 라우팅한다.
+Istio의 VirtualService는 클라이언트가 특정 호스트(서비스)로 보낸 요청을 **실제로 어디로, 어떻게 보낼지** 결정하는 트래픽 라우팅 규칙의 집합이다. 요청이 호스트에 도달했을 때 적용할 규칙(매칭 조건)을 **순서대로 평가**하고, 조건에 맞는 경우 지정된 목적지(Destination)로 트래픽을 라우팅한다.
 
 ---
 
@@ -77,7 +77,7 @@ gatewayRoutes를 이해하려면 VirtualService를 알아야 한다.
 
 ### 1. HTTP 요청 라우팅 및 URI 재작성
 
-가장 일반적인 패턴으로, 특정 조건에 맞는 요청을 찾아(Match) 목적지로 보내거나 경로를 수정한다.
+자주 쓰는 패턴으로, 특정 조건에 맞는 요청을 찾아(Match) 목적지로 보내거나 경로를 수정한다.
 
 ```yaml
 apiVersion: networking.istio.io/v1
@@ -109,7 +109,7 @@ spec:
 
 | 필드 | 설명 |
 |------|------|
-| **hosts** | 클라이언트가 요청을 보낼 때 사용하는 주소. K8s 서비스의 FQDN 사용 권장 |
+| **hosts** | 클라이언트가 요청을 보낼 때 사용하는 주소. K8s 서비스의 FQDN을 주로 사용 |
 | **match** | 트래픽 필터링 조건. 여러 match 블록을 나열하면 **OR 조건**으로 동작 |
 | **rewrite** | 백엔드로 전달 전 URI 수정. 사용자는 `/wpcatalog`으로 요청했지만 실제 서비스는 `/newcatalog`으로 받음 |
 | **route & destination** | 매칭된 트래픽의 실제 목적지. `subset: v2`는 DestinationRule에 정의된 v2 버전 파드들 |
@@ -206,7 +206,7 @@ Istio에서 Gateway와 VirtualService는 역할이 분리되어 있다.
 
 VirtualService의 `gateways` 필드에 Gateway 이름을 지정하면 둘이 연결된다. 위 예시에서 `gateways: [istio-gateway]`가 이 연결이다.
 
-> **참고:** Istio는 자체 Gateway CRD 외에 [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)도 지원하며, 장기적으로 Kubernetes Gateway API로 전환하는 방향이다. 신규 구축 시에는 두 옵션을 비교해볼 것을 권장한다.
+> **참고:** Istio는 자체 Gateway CRD 외에 [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)도 지원하며, 장기적으로 Kubernetes Gateway API로 전환하는 방향이다. 신규 구축이라면 두 옵션을 비교할 만하다.
 
 ---
 
@@ -216,4 +216,3 @@ VirtualService의 `gateways` 필드에 Gateway 이름을 지정하면 둘이 연
 - [Istio VirtualService API Reference](https://istio.io/latest/docs/reference/config/networking/virtual-service/)
 - [Istio Gateway API Reference](https://istio.io/latest/docs/reference/config/networking/gateway/)
 - [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) — Istio Gateway의 대안
-
