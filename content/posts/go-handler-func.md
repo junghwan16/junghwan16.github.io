@@ -192,24 +192,10 @@ func (d Dir) Open(name string) (File, error) { /* ... */ }
 
 ## 다시 처음 코드로
 
-처음 봤던 코드를 다시 보자.
-
-```go
-http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("hello"))
-}))
-```
-
-이제 한 줄씩 읽힌다.
-
-1. 익명 함수를 만든다 — 타입은 `func(ResponseWriter, *Request)`.
-2. `http.HandlerFunc(...)`로 타입 변환한다 — 이제 `ServeHTTP` 메서드가 붙어 `Handler` 인터페이스를 만족한다.
-3. `ListenAndServe`에 `Handler`로 넘긴다.
-
 여기서 쓰인 규칙은 세 가지다.
 
 - 함수 시그니처에도 이름(타입)을 붙일 수 있다.
 - 그 타입에 메서드를 붙일 수 있다.
 - 메서드가 인터페이스 요건을 충족하면, 그 함수는 인터페이스가 된다.
 
-Go의 타입 시스템이 가진 작은 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 설명된다. 한 번 분해해서 보면 타입과 메서드의 조합일 뿐이다.
+Go의 타입 시스템이 가진 작은 규칙 몇 개를 조합하면 "함수를 인터페이스 자리에 끼우는" 일이 특별한 문법 없이 설명된다.

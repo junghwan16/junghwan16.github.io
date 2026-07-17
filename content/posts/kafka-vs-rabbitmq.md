@@ -1,420 +1,108 @@
 ---
-title: "Kafka와 RabbitMQ는 메시지를 다르게 바라본다"
+title: "Kafka와 RabbitMQ는 무엇이 다른가"
 url: "/backend/messaging/2026/01/30/kafka-vs-rabbitmq/"
 date: 2026-01-30 10:00:00 +0900
 categories: [backend, messaging]
-mermaid: true
 ---
 
-Kafka와 RabbitMQ는 둘 다 메시지 브로커로 묶이지만, 출발점이 다르다. RabbitMQ는 메시지를 소비자에게 전달하는 큐에 가깝고, Kafka는 메시지를 오래 남겨두는 로그에 가깝다. 이 차이를 놓치면 처리량, 재처리, 라우팅, 장애 복구 판단이 계속 꼬인다.
+Kafka와 RabbitMQ는 둘 다 메시지를 전달하지만, 같은 문제를 푸는 도구는 아니다. RabbitMQ는 **작업을 한 소비자에게 맡기는 큐**에 가깝고, Kafka는 **이벤트를 오래 남겨 여러 소비자가 읽는 로그**에 가깝다.
 
-## 아키텍처 차이
+선택 기준도 여기서 갈린다. 메시지를 처리한 뒤 사라져도 되면 RabbitMQ가 자연스럽다. 나중에 다시 읽거나, 여러 시스템이 같은 이벤트를 각자 처리해야 한다면 Kafka가 자연스럽다.
 
-### 메시지 소비 방식
+## 결론 먼저
 
-| | RabbitMQ | Kafka |
+| 질문 | RabbitMQ가 맞는 쪽 | Kafka가 맞는 쪽 |
 |---|---|---|
-| 메시지 소비 | Consumer가 가져가면 **삭제됨** | Consumer가 읽어도 **유지됨** |
-| 비유 | 택배 수령 (가져가면 끝) | 게시판 열람 (누가 봐도 글은 그대로) |
-| 저장 방식 | 메모리 버퍼링 + 디스크 영속화 (Quorum Queue는 Raft 기반 디스크 복제) | 디스크에 로그처럼 저장 |
-| 전달 모델 | **Push** — 브로커가 Consumer에게 밀어줌 | **Pull** — Consumer가 브로커에서 당겨감 |
+| 메시지 성격 | 처리해야 할 작업(command) | 이미 일어난 사실(event) |
+| 소비 방식 | 한 작업을 한 worker가 처리 | 여러 consumer group이 같은 이벤트를 각자 읽음 |
+| 처리 후 상태 | ACK 후 큐에서 제거 | 보관 기간 동안 로그에 유지 |
+| 재처리 | 실패한 메시지 재시도 중심 | offset을 되돌려 과거 이벤트 재생 |
+| 라우팅 | exchange, routing key, header 기반 라우팅 | topic, partition key 중심 |
+| 확장 기준 | worker 수를 늘려 큐를 비움 | partition 수가 병렬 처리 상한 |
 
-### Push vs Pull
+짧게 말하면 이렇다.
 
-```mermaid
-flowchart LR
-    subgraph RabbitMQ["RabbitMQ (Push)"]
-        direction LR
-        RP[Producer] --> RB["Broker\n브로커가 주도"]
-        RB ==>|"받아라!"| RC["Consumer\n(수동적)"]
-    end
+- **RabbitMQ**: "이 작업을 누가 처리할 것인가?"
+- **Kafka**: "이 이벤트를 누가 어디까지 읽었는가?"
 
-    subgraph Kafka["Kafka (Pull)"]
-        direction LR
-        KP[Producer] --> KB["Broker\n로그만 저장"]
-        KC["Consumer\n(능동적)"] ==>|"줘!"| KB
-    end
+## RabbitMQ는 큐다
+
+RabbitMQ에서 메시지는 큐에 들어가고, consumer가 처리한 뒤 ACK를 보내면 큐에서 빠진다.
+
+이 모델은 작업 분배에 잘 맞는다.
+
+예를 들어 이미지 썸네일 생성 작업을 생각해보자.
+
+```text
+이미지 업로드 -> thumbnail.queue -> worker 1
+                              -> worker 2
+                              -> worker 3
 ```
 
-**RabbitMQ (Smart Broker, Dumb Consumer)**
-- 브로커가 큐에 메시지가 들어오자마자 즉시 밀어 넣는다
-- 지연 시간 최소화. `prefetch_count`로 흐름 제어
+작업 하나는 worker 하나만 처리하면 된다. 실패하면 다시 큐에 넣거나 dead letter queue로 보낸다. 성공한 작업을 몇 시간 뒤 다시 읽을 필요도 없다. 이런 경우 Kafka의 로그 보관과 offset 관리는 오히려 부담이다.
 
-**Kafka (Dumb Broker, Smart Consumer)**
-- 컨슈머가 자신의 처리 능력에 맞춰 속도 조절
-- 장애 발생해도 브로커에 데이터가 그대로 있어 나중에 다시 가져올 수 있음
+RabbitMQ의 강점은 세밀한 라우팅이다. direct, topic, fanout, headers exchange를 조합하면 "에러 로그는 알림 큐로, 전체 로그는 아카이브 큐로" 같은 구성을 브로커 레벨에서 표현할 수 있다.
 
----
+## Kafka는 로그다
 
-## RabbitMQ: Exchange와 Queue
+Kafka에서 메시지는 topic의 partition에 append-only 로그로 쌓인다. consumer가 읽어도 바로 삭제되지 않고, consumer group이 자신이 어디까지 읽었는지 offset으로 기록한다.
 
-RabbitMQ의 라우팅은 Exchange와 Queue를 분리해서 이해해야 한다.
+이 모델은 이벤트 스트림에 잘 맞는다.
 
-```
-Producer -> [Exchange] --binding--> [에러 로그 큐] --> 알림 서비스
-                       --binding--> [전체 로그 큐] --> 아카이빙 서비스
+```text
+orders topic
+  -> billing consumer group
+  -> analytics consumer group
+  -> dashboard consumer group
 ```
 
-- **Exchange**: 메시지를 어떤 큐로 보낼지 결정하는 라우팅 로직. 저장하지 않음
-- **Queue**: 메시지가 소비되기 전까지 실제로 저장되는 버퍼
-- **Binding**: Exchange와 Queue를 연결하는 규칙 (Routing Key 기반)
+주문 완료 이벤트 하나를 정산 시스템, 분석 시스템, 실시간 대시보드가 모두 필요로 할 수 있다. Kafka에서는 각 시스템을 다른 consumer group으로 두면 된다. 한 그룹 안에서는 partition을 나눠 처리하고, 다른 그룹은 같은 이벤트를 독립적으로 다시 읽는다.
 
-### Exchange 타입
+또 중요한 차이는 재처리다. 집계 로직에 버그가 있었다면 offset을 과거로 되돌려 이벤트를 다시 읽을 수 있다. RabbitMQ의 일반 큐 모델에서는 이미 ACK된 메시지를 그렇게 되살릴 수 없다.
 
-| Exchange 타입 | 라우팅 방식 |
-|---|---|
-| **Direct** | routing key가 정확히 일치하는 큐로 전달 |
-| **Topic** | 와일드카드 패턴 매칭 (`*`: 한 단어, `#`: 0개 이상) |
-| **Fanout** | 바인딩된 모든 큐에 브로드캐스트 |
-| **Headers** | 메시지 header 속성 기반 매칭 |
-
-### AMQP 프로토콜
-
-RabbitMQ는 **AMQP(Advanced Message Queuing Protocol)** 0-9-1을 사용한다. ISO/IEC 국제 표준으로, 메시지 전송 형식뿐 아니라 브로커 내부 동작 방식(Exchange, Queue, Binding)까지 정의한다.
-
----
-
-## Kafka: Consumer Group과 Partition
-
-### Consumer Group
-
-같은 클릭 이벤트를 여러 시스템이 필요로 하는 상황:
-
-```
-광고 클릭 이벤트 발생 -> 여러 시스템이 필요로 함:
-- 정산 시스템: 광고주에게 비용 청구
-- 분석 시스템: 클릭률(CTR) 집계
-- 실시간 대시보드: 광고주가 보는 현황판
-```
-
-정산 서버가 3대인데 같은 클릭 이벤트를 3대 모두 처리하면 100원짜리 클릭이 300원으로 과청구된다.
-
-```mermaid
-flowchart TD
-    E["클릭 이벤트"] --> T["Kafka Topic: ad-clicks"]
-    T --> G1
-    T --> G2
-
-    subgraph G1["Consumer Group: 정산"]
-        direction LR
-        A["서버A"] ~~~ B["서버B"] ~~~ C["서버C"]
-    end
-
-    subgraph G2["Consumer Group: 분석"]
-        direction LR
-        D["분석 서버"]
-    end
-```
-
-- 정산 그룹: 3대가 이벤트를 **나눠서** 처리 (한 이벤트는 딱 한 대만)
-- 분석 그룹: 별도 그룹이라 **같은 이벤트를 또 받음**
-
-규칙은 이렇다.
-- **같은 Consumer Group 내에서는** -> 이벤트를 나눠 가짐 (중복 처리 방지)
-- **다른 Consumer Group끼리는** -> 같은 이벤트를 각자 받음
-
-### Offset
-
-메시지가 순서대로 쌓이므로, 각 메시지에 번호(offset)가 붙는다: 0, 1, 2, 3...
-
-```
-"정산 그룹은 offset 1542까지 읽었다"
-```
-
-Kafka는 Consumer의 현재 위치를 `__consumer_offsets` 내부 토픽에 저장한다. 메시지가 삭제되지 않으므로 offset을 과거로 되돌리면 **재처리가 가능**하다.
-
-### Partition
-
-초당 10만 건이 하나의 줄에 순서대로 쌓이면 쓰기 병목이 발생한다. 여러 Partition으로 나눈다.
-
-```
-                    +- Partition 0: [0, 1, 2, 3, ...]
-                    |
-클릭 -> Topic ------+- Partition 1: [0, 1, 2, 3, ...]
-                    |
-                    +- Partition 2: [0, 1, 2, 3, ...]
-```
-
-```python
-hash(ad_id) % 파티션_수  # -> 해당 Partition으로
-```
-
-**같은 `ad_id`의 클릭은 항상 같은 Partition** -> 같은 광고 내에서 순서 보장
-
-**Consumer와 Partition의 관계**
-
-| 상황 | 결과 |
-|---|---|
-| Partition 3개, Consumer 2개 | 한 Consumer가 2개 담당 |
-| Partition 3개, Consumer 3개 | 딱 맞게 1:1 |
-| Partition 3개, Consumer 5개 | **2개는 놀고 있음** |
-
--> **Partition 수가 병렬 처리의 상한선**
-
----
-
-## 전달 보장 (Delivery Guarantees)
-
-전달 보장은 "메시지를 몇 번 처리할 수 있는가"에 대한 약속이다. 이름은 짧지만, 실제로는 장애와 재시도 정책이 함께 따라온다.
-
-| 보장 수준 | 메시지 유실 | 메시지 중복 | 사용 예시 |
-|-----------|-----------|-----------|----------|
-| At-most-once | O | X | 로그, 메트릭 |
-| At-least-once | X | O | 알림, 이벤트 처리 |
-| Exactly-once | X | X | 결제, 정산 |
-
-### At-most-once (최대 한 번)
-
-메시지를 보내고 확인(Ack)을 받지 않는다. 유실 가능, 중복 없음. (Fire and forget)
-
-### At-least-once (적어도 한 번)
-
-메시지를 보내고 확인(Ack)을 받는다. 못 받으면 재전송. 유실 없음, **중복 가능**.
-
-```
-Producer: "메시지 보냈다!"
-Consumer: 처리 완료, Ack 전송 -> (네트워크 끊김) -> Producer: Ack 못 받음
-Producer: "Ack 안 왔네? 다시 보낸다!"
-결과: Consumer가 같은 메시지를 두 번 받음
-```
-
-### Exactly-once (정확히 한 번)
-
-제약이 많다. 유실도 없고 중복도 없다.
-
-- **Kafka**: 멱등성 프로듀서(`enable.idempotence=true`)와 트랜잭션으로 **Kafka-to-Kafka 파이프라인**(consume-transform-produce)에서 보장. 외부 시스템(DB, API)과의 exactly-once는 별도 멱등성 처리가 필요하다
-- **RabbitMQ**: 기본 미지원. 컨슈머단에서 중복 처리 방지 로직(Idempotency) 구현 필요
-
----
-
-## 저장 정책
-
-Kafka는 메시지를 소비해도 지우지 않는다. **정책**(Policy)에 따라 파일 시스템에 저장한다.
-
-| 정책 | 설정 예시 | 설명 |
-|---|---|---|
-| 시간 기반 | `log.retention.hours=168` | 7일 동안 보관 후 삭제 |
-| 크기 기반 | `log.retention.bytes=1GB` | 파티션 크기 초과 시 오래된 것부터 삭제 |
-
-이 정책 덕분에 Kafka는 **과거 데이터 재생**(Replay)이 가능한 스토리지 시스템처럼 동작한다.
-
-RabbitMQ는 소비되면 삭제된다. (단, RabbitMQ Streams 3.9+는 Kafka처럼 append-only 로그 지원)
-
----
-
-## 처리량 vs 지연시간
-
-### Kafka (높은 처리량)
-
-- **배치 처리**: 메시지를 모아서 한 번에 전송/저장
-- **순차 I/O**: 디스크에 append-only로 순차적으로 쓴다
-- **Zero-copy**: 커널 레벨에서 데이터를 복사 없이 직접 네트워크로 전송
-- **단점**: 배치 대기 시간만큼 개별 메시지 지연 증가
-
-### RabbitMQ (낮은 지연시간)
-
-- **즉시 전달**: 배치 없이 바로 Push
-- **메모리 중심**: 빠른 접근
-- **단점**: 대량 처리 시 메모리 한계, 개별 메시지 오버헤드
-
-```
-Kafka:   [msg1, msg2, msg3, msg4, msg5] --batch--> Consumer
-         ~~~~~~~~~~~~ 배치 대기 ~~~~~~~~~~~~~
-         처리량: 높음, 지연시간: 배치 간격만큼
-
-RabbitMQ: msg1 --> Consumer (즉시)
-          msg2 --> Consumer (즉시)
-          처리량: 낮음, 지연시간: 최소
-```
-
----
-
-## DLQ(Dead Letter Queue) 패턴
-
-처리에 실패한 메시지를 별도 큐/토픽으로 격리하는 패턴이다.
-
-### RabbitMQ: 브로커 레벨 지원
-
-```
-Worker: PDF 생성 실패 -> ACK 안 보냄 -> 메시지 자동 재전달
-```
-
-큐 선언 시 `x-dead-letter-exchange`와 `x-dead-letter-routing-key` 설정하면, 거부(reject/nack)되거나 TTL 만료된 메시지가 자동으로 DLX로 라우팅된다. 별도 코드 없이 브로커 설정만으로 동작.
-
-### Kafka: 직접 구현
-
-Kafka는 "dumb pipes, smart endpoints" 철학. 브로커는 append-only 로그를 맡고, 에러 처리는 클라이언트가 담당.
-
-```
-[ad-events] --> Consumer --> 외부 API 호출
-                   |
-                   +-- 성공 -> commit
-                   |
-                   +-- 실패 -> [ad-events-dlq] 로 전송
-                                    |
-                                    v
-                            DLQ Consumer (재시도)
-```
-
-**DLQ Best Practices**
-
-원본 메시지 key/value는 유지하고, 실패 원인은 Kafka message header에 기록:
-
-```python
-headers = [
-    ("error.cause", b"TimeoutException"),
-    ("error.message", b"External API timeout after 5000ms"),
-    ("error.origin.topic", b"ad-events"),
-    ("error.origin.partition", b"3"),
-    ("error.origin.offset", b"1542"),
-]
-producer.send("ad-events-dlq", key=original_key, value=original_value, headers=headers)
-```
-
-### 순서 보장 DLQ 패턴
-
-광고 이벤트처럼 순서가 필요한 경우:
-
-```
-offset 10: "광고 123 시작" -> 실패 -> DLQ로
-offset 11: "광고 123 종료" -> ???
-offset 12: "광고 123 시작" -> ???
-```
-
-순서가 깨지면 안 되는 흐름에서는 offset 11, 12도 처리하면 안 된다.
-
-```python
-blocked_ad_ids: set[str] = set()
-
-def process_event(event):
-    if event.ad_id in blocked_ad_ids:
-        send_to_dlq(event, reason="blocked_by_previous_failure")
-        return
-
-    success = call_external_api(event)
-
-    if not success:
-        send_to_dlq(event, reason="api_failure")
-        blocked_ad_ids.add(event.ad_id)  # 이 ad_id blocked 처리
-```
-
----
-
-## Zookeeper 제거 (KRaft)
-
-### Zookeeper의 원래 역할
-
-- 브로커 등록/발견
-- Controller 선출
-- 토픽/파티션 메타데이터 저장
-- ACL(권한) 정보
-
-### 왜 제거했을까?
-
-| 문제점 | 설명 |
-|---|---|
-| 운영 복잡성 | Kafka와 Zookeeper 두 개의 분산 시스템을 운영 |
-| 확장성 한계 | Zookeeper가 병목, 파티션 수 제한 (~수만 개) |
-| 장애 복구 지연 | Controller 재선출에 시간 소요 |
-| 메타데이터 불일치 | Kafka-Zookeeper 간 동기화 문제 |
-
-### KRaft 모드 (Kafka 3.0+)
-
-Kafka 브로커들이 자체적으로 Raft 프로토콜로 합의를 수행한다.
-
-**Before (Zookeeper 방식):**
-
-```mermaid
-flowchart TD
-    B1[Broker 1] --> ZK["Zookeeper Cluster"]
-    B2[Broker 2] --> ZK
-```
-
-**After (KRaft 방식):**
-
-```mermaid
-flowchart TD
-    C1[Controller 1] <-->|Raft| C2[Controller 2] <-->|Raft| C3[Controller 3]
-    C1 --- B1[Broker 1]
-    C2 --- B2[Broker 2]
-    C3 --- B3[Broker 3]
-```
-
-- 빠른 복구: Controller 장애 시 밀리초 단위로 새 Controller 선출
-- 확장성 향상: 수백만 개의 파티션까지 지원
-- Kafka 4.0에서 Zookeeper 지원이 완전히 제거되었다
-
----
-
-## 언제 뭘 쓸까?
+## 선택 예시
 
 | 상황 | 선택 | 이유 |
 |---|---|---|
-| 광고 클릭/노출 스트림 | Kafka | 대용량, 재처리, 여러 시스템이 같은 데이터 필요 |
-| 썸네일 생성 작업 | RabbitMQ | 소규모, 한 번 처리하면 끝, 작업 분배 |
-| 정산 리포트 PDF 생성 | RabbitMQ | 실패 시 재시도 간단 (ACK 기반) |
-| 이벤트 소싱/로그 수집 | Kafka | 순서 보장 + 영구 저장 + 재처리 |
-| 마이크로서비스 간 RPC성 통신 | RabbitMQ | 요청-응답 패턴, 유연한 라우팅 |
+| 이미지 리사이즈, 이메일 발송, PDF 생성 | RabbitMQ | 한 번 성공하면 끝나는 작업 큐 |
+| 주문/결제 이벤트 수집 | Kafka | 여러 시스템이 같은 이벤트를 읽고, 재처리도 필요 |
+| 서비스 간 요청-응답성 비동기 작업 | RabbitMQ | 라우팅과 ACK 기반 재시도가 단순 |
+| 로그 수집, 이벤트 소싱, 분석 파이프라인 | Kafka | 보관, 재생, 순서 있는 스트림 처리 |
+| 소규모 알림 fanout | RabbitMQ | exchange로 라우팅을 명확히 표현 |
 
----
+## 자주 헷갈리는 지점
 
-## 성능 벤치마크
+RabbitMQ도 fanout을 할 수 있다. 다만 consumer마다 큐를 따로 만들고, 메시지가 ACK되면 사라지는 큐 모델이다. "새 consumer가 나중에 붙어서 과거 이벤트를 읽는다"는 요구에는 Kafka가 더 자연스럽다.
 
-아래 수치는 일반적으로 알려진 대략적인 참고치이며, 실제 성능은 하드웨어, 메시지 크기, 배치 설정, 영속성 모드에 따라 크게 달라진다 (3노드 클러스터, 1KB 메시지 기준):
+Kafka도 작업 큐처럼 쓸 수 있다. 하지만 메시지별 재시도, 지연 재시도, dead letter topic, poison message 처리는 애플리케이션 쪽 규율이 필요하다. 특히 partition 안의 순서가 중요하다면 실패한 메시지 하나가 뒤 메시지 처리 정책까지 흔든다.
 
-| 지표 | Kafka | RabbitMQ |
-|------|-------|----------|
-| 처리량 (Producer) | **100만 msg/sec** | 20,000 msg/sec |
-| 처리량 (Consumer) | 100만 msg/sec | 30,000 msg/sec |
-| 지연시간 (p99) | 5~15ms (배치) | **1~2ms** |
-| 지연시간 (p99, 배치 없음) | 2~5ms | 1~2ms |
+Exactly-once도 이름만 보고 고르면 안 된다. Kafka의 exactly-once는 주로 Kafka 안에서 consume-transform-produce 하는 파이프라인에 대한 보장이다. 외부 DB나 외부 API까지 포함하면 결국 idempotency key, 중복 처리 방지 테이블, 트랜잭션 경계 설계가 필요하다.
 
-Kafka는 `linger.ms=5`, `batch.size=16KB` 기본값 기준. 배치를 줄이면 지연시간이 줄지만 처리량도 감소한다.
+성능 수치도 단독 기준이 되기 어렵다. 메시지 크기, batching, persistence, replication, consumer 처리 시간에 따라 결과가 크게 바뀐다. 도구 선택은 "초당 몇 건"보다 "메시지를 다시 읽어야 하는가", "한 이벤트를 여러 시스템이 독립적으로 소비하는가", "실패를 어디서 다룰 것인가"를 먼저 봐야 한다.
 
----
+## 판단 규칙
 
-## 선택 기준표
+아래 질문에 Kafka 쪽 답이 많으면 Kafka를 고른다.
 
-| 항목 | Kafka | RabbitMQ |
-|---|---|---|
-| 메시지 보관 | 디스크에 유지 (재처리 가능) | 소비되면 삭제 |
-| 여러 시스템이 같은 메시지 필요 | Consumer Group으로 처리 | Exchange 설정 필요 |
-| 순서 보장 | Partition 내 보장 | 기본 보장 (단일 큐) |
-| 병렬 처리 확장 | Partition 수가 상한선 | Worker 수 자유롭게 |
-| 작업 단위 재시도 | DLQ 패턴 직접 구현 | ACK 기반으로 간단 |
-| 처리량 | **~100만 msg/sec** | ~2만 msg/sec |
-| 지연시간 | 5~15ms | **1~2ms** |
-| 라우팅 | Topic 기반 | Exchange 기반 (유연함) |
+- 같은 이벤트를 여러 시스템이 독립적으로 읽어야 하는가?
+- 며칠 뒤 같은 데이터를 다시 처리해야 하는가?
+- consumer가 각자 읽은 위치를 관리해야 하는가?
+- partition key 기준 순서 보장이 중요한가?
+- 로그 수집, 분석, 이벤트 소싱처럼 데이터 흐름 자체가 중요한가?
 
----
+아래 질문에 RabbitMQ 쪽 답이 많으면 RabbitMQ를 고른다.
 
-## Redis를 메시지 브로커로 쓸 수 있을까?
+- 메시지는 처리해야 할 작업인가?
+- 성공한 메시지는 사라져도 되는가?
+- 실패한 작업을 ACK/NACK과 DLQ로 단순하게 다루고 싶은가?
+- routing key나 header로 큐를 세밀하게 나누고 싶은가?
+- 운영 규모가 크지 않은 비동기 작업 큐가 필요한가?
 
-Kafka/RabbitMQ 도입이 과할 때, Redis로 가벼운 메시징을 구현할 수 있다.
-
-| 모델 | 저장 | 신뢰성 | 적합한 경우 |
-|------|------|--------|------------|
-| **Pub/Sub** | 안 함 | 없음 | 실시간 알림, 유실 허용되는 신호 |
-| **List + BRPOPLPUSH** | 직접 관리 | 수동 | 소규모 비동기 작업 큐 |
-| **Streams** | append-only | at-least-once | Consumer Group, ACK, 재처리가 필요한 경우 |
-
-```
-신뢰성 필요 없음 ──────────────────────────────► 신뢰성 필요
-     │                                              │
-  Pub/Sub ────────► List 큐 ────────► Streams ────► Kafka
-```
-
-Redis Streams는 `XREADGROUP`/`XACK`/`XAUTOCLAIM`으로 "작은 Kafka" 역할을 할 수 있지만, 대규모 파이프라인이나 정확한 파티셔닝이 필요하면 전문 브로커를 써야 한다.
-
----
+정리하면, **RabbitMQ는 해야 할 일을 나눠주는 도구**이고 **Kafka는 일어난 일을 오래 남겨 여러 곳에서 읽게 하는 도구**다.
 
 ## 참고자료
 
 - [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
 - [RabbitMQ Documentation](https://www.rabbitmq.com/docs)
-- [AMQP 0-9-1 Protocol](https://www.rabbitmq.com/tutorials/amqp-concepts)
-- [Confluent - Kafka vs RabbitMQ](https://www.confluent.io/blog/kafka-vs-rabbitmq/)
-- [KIP-500 (KRaft)](https://cwiki.apache.org/confluence/display/KAFKA/KIP-500)
-- [RabbitMQ Quorum Queues](https://www.rabbitmq.com/docs/quorum-queues) — Raft 기반 디스크 복제 큐
-- [KIP-98 Exactly Once Delivery](https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging) — Kafka exactly-once 설계
-- [Apache Kafka 4.0 Release](https://kafka.apache.org/blog#apache_kafka_400_release_announcement) — Zookeeper 제거 확정
+- [RabbitMQ AMQP 0-9-1 Model Explained](https://www.rabbitmq.com/tutorials/amqp-concepts)
+- [Kafka Design](https://kafka.apache.org/documentation/#design)

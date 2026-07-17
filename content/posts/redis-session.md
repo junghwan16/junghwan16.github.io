@@ -3,15 +3,10 @@ title: "세션 스토어로 Redis를 쓸 때 고려할 것들"
 url: "/backend/redis/2026/01/24/redis-session/"
 date: 2026-01-24 15:00:00 +0900
 categories: [backend, redis]
+draft: true
 ---
 
-서버를 무상태로 만들고 싶다면 세션을 Redis로 옮기는 것이 일반적인 선택이다. 단, 보안과 TTL 전략을 놓치면 심각한 문제로 이어질 수 있으므로 설계 단계에서 다뤄야 한다.
-
-## 왜 Redis 세션인가
-
-- 서버를 **무상태**(stateless)로 만들어 수평 확장할 수 있다
-- 인메모리라 빠르고, TTL로 자동 청소된다
-- Sentinel/Cluster로 SPOF를 제거할 수 있다
+서버를 무상태로 만들려고 세션을 Redis로 옮기고 나면, 진짜 문제는 그다음에 나온다. 보안과 TTL, 그리고 만료 시점을 어떻게 다루느냐다.
 
 ## 세션 키/값 설계
 
@@ -21,15 +16,6 @@ categories: [backend, redis]
 | **값** | 직렬화된 프로필/권한 (최소한의 정보, PII 최소화) |
 | **포맷** | JSON (편리) / MessagePack, Protobuf (compact/fast) |
 | **TTL** | 로그인 시 설정 (예: 30m~2h) |
-
-## 기본 흐름
-
-```
-1. 로그인 성공 → SET session:{sid} <json> EX 3600
-2. 요청마다 쿠키/헤더로 sid 수신 → GET session:{sid}
-3. 유효하면 (선택) EXPIRE session:{sid} 3600 으로 연장
-4. 로그아웃 → DEL session:{sid}
-```
 
 ## Python Flask 예시
 
@@ -79,15 +65,30 @@ def logout():
     return resp
 ```
 
-## 보안 체크리스트
+## 보안
 
 | 항목 | 대응 |
 |------|------|
 | 쿠키 옵션 | `Secure` + `HttpOnly` + `SameSite` |
-| 세션 고정 방지 | 로그인/권한 상승 시 **새 sid 발급** 후 기존 폐기 |
+| 세션 고정(Fixation) | 로그인/권한 상승 시 **새 sid 발급** 후 기존 폐기 |
 | CSRF | SameSite=Lax/Strict 또는 CSRF 토큰 병행 |
-| 탈취 방지 | sid 길이/엔트로피 확보 (랜덤 128bit 이상) |
+| 하이재킹/무차별 대입 | sid 길이/엔트로피 확보 (랜덤 128bit 이상, UUID4) |
+| IP 변경 감지 | 세션에 IP 저장, 변경 시 재인증 요구 |
 | PII | 평문 저장 금지, 최소 정보만 |
+
+IP 변경 감지처럼 값 검증이 필요한 경우, 조회 시점에 함께 확인한다.
+
+```python
+def validate_session(sid: str, request_ip: str) -> bool:
+    raw = redis.get(f"session:{sid}")
+    if raw is None:
+        return False  # 세션 만료 또는 존재하지 않음
+    session = json.loads(raw)
+    if session.get("ip") != request_ip:
+        redis.delete(f"session:{sid}")
+        return False
+    return True
+```
 
 ## TTL 전략
 
@@ -97,35 +98,27 @@ def logout():
 | **고정** | 무조건 만료 시점까지 | 토큰/단기 인증 |
 | **블랙리스트** | 로그아웃/탈퇴 시 무효화 | 다중 세션 강제 로그아웃 |
 
-## 확장/운영 팁
+## 만료 이벤트는 정시에 오지 않는다
 
-### 키 스페이스 설계
-
-```bash
-# 세션 키 개수 확인
-SCAN 0 MATCH session:* COUNT 1000
-INFO keyspace
-```
-
-### 클러스터 환경
-
-- 해시태그로 동일 사용자 세션을 한 슬롯에 모을지 결정한다
-- 예: `session:{user:123}:abc123`
-
-### 가용성
-
-- 세션은 캐시 성격이므로 복제본 읽기를 허용할 수 있다
-- 쓰기는 마스터로 전달한다
-- Sentinel/Cluster로 자동 페일오버를 구성한다
-
-### 만료 이벤트 구독
+강제 로그아웃 같은 후속 작업을 만료 이벤트로 걸고 싶을 때가 있다.
 
 ```redis
 CONFIG SET notify-keyspace-events Ex
 PSUBSCRIBE "__keyevent@0__:expired"
 ```
 
-강제 로그아웃 등 후속 작업이 필요할 때 사용한다. 단, Redis의 expired 이벤트는 lazy expiry(접근 시 만료 확인) 또는 active expiry(백그라운드 주기적 스캔)에 의존하므로 **정확한 만료 시점에 즉시 발생하지 않을 수 있다.** 실시간 보장이 필요한 로직에는 적합하지 않다.
+단, Redis의 expired 이벤트는 lazy expiry(접근 시 만료 확인) 또는 active expiry(백그라운드 주기적 스캔)에 의존하므로 **정확한 만료 시점에 즉시 발생하지 않을 수 있다.** 실시간 보장이 필요한 로직에는 적합하지 않다.
+
+## 분산 환경에서의 일관성
+
+세션 데이터는 **결과적 일관성**(Eventual Consistency)으로 처리해도 된다.
+
+```
+[요청 1] → Master → 쓰기 성공
+[요청 2] → Replica → 아직 복제 안 됨 → 이전 데이터
+```
+
+대부분의 세션 조회는 복제본 읽기로도 문제없다. 복제 지연(~ms)이 문제가 되면 로그인/로그아웃은 마스터에서만 처리하고, 정합성이 중요한 구간에만 `WAIT`으로 복제 완료를 기다린다(성능 저하 감수). 클러스터라면 해시태그(`session:{user:123}:abc123`)로 동일 사용자 세션을 한 슬롯에 모을지 결정한다.
 
 ## 흔한 실수
 
@@ -140,46 +133,6 @@ PSUBSCRIBE "__keyevent@0__:expired"
 - `used_memory`, `connected_clients`
 - `expired_keys`, `evicted_keys`
 - 세션 미스율을 추적하여 TTL 정책 조정에 활용한다
-
----
-
-## 분산 환경에서의 일관성
-
-세션 데이터는 **결과적 일관성**(Eventual Consistency)으로 처리해도 된다.
-
-```
-[요청 1] → Master → 쓰기 성공
-[요청 2] → Replica → 아직 복제 안 됨 → 이전 데이터
-```
-
-일반적인 로컬 네트워크 환경에서 복제 지연(~ms)이 문제가 되는 경우:
-- `WAIT` 명령으로 복제 완료 대기 (성능 저하)
-- 로그인/로그아웃은 마스터에서만 처리
-
-대부분의 세션 조회는 복제본 읽기로도 문제없다.
-
----
-
-## 세션 탈취 방어
-
-| 공격 | 방어 |
-|------|------|
-| 세션 고정(Fixation) | 로그인 시 새 sid 발급, 기존 삭제 |
-| 세션 하이재킹 | Secure + HttpOnly + SameSite 쿠키 |
-| 무차별 대입 | sid 128bit 이상 랜덤 (UUID4) |
-| IP 변경 감지 | 세션에 IP 저장, 변경 시 재인증 요구 |
-
-```python
-def validate_session(sid: str, request_ip: str) -> bool:
-    raw = redis.get(f"session:{sid}")
-    if raw is None:
-        return False  # 세션 만료 또는 존재하지 않음
-    session = json.loads(raw)
-    if session.get("ip") != request_ip:
-        redis.delete(f"session:{sid}")
-        return False
-    return True
-```
 
 ---
 

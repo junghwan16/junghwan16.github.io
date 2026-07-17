@@ -3,6 +3,7 @@ title: "gnhf: 재워두고 돌리는 에이전트 루프"
 url: "/backend/ai/2026/06/03/gnhf/introduce"
 date: 2026-06-03 16:20:00 +0900
 categories: [ai, agent]
+draft: true
 ---
 
 gnhf는 목표 하나를 던져두면 에이전트를 반복 실행하고, 성공한 지점마다 커밋을 남기는 CLI 도구다. 이름처럼 자기 전에 걸어두고 아침에 결과를 확인하는 사용성을 노린다.

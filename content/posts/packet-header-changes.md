@@ -5,236 +5,101 @@ date: 2026-02-07 12:00:00 +0900
 categories: [network]
 ---
 
-> 관련 문서: [[클라이언트의 IP를 알아내는 방법]]
+프록시 뒤에서 클라이언트 IP가 사라지는 이유를 이해하려면, 패킷이 홉을 지날 때 어떤 헤더가 바뀌는지 보면 된다. 핵심은 L2는 매 홉 바뀌고, L3/L4는 NAT이나 프록시가 개입할 때만 바뀐다는 점이다.
 
-네트워크 패킷이 라우터/스위치를 거치면서 "어떤 헤더는 바뀌고, 어떤 헤더는 안 바뀌는가"를 보면, 프록시 뒤에서 클라이언트 IP가 사라지는 이유를 설명할 수 있다.
+## 기본 구조
 
----
-
-## 먼저: 패킷의 계층 구조
-
-네트워크 패킷은 러시아 인형(마트료시카)처럼 겹겹이 감싸져 있다:
-
-```
-┌─────────────────────────────────────────────────────┐
-│ L2 Ethernet Frame                                   │
-│  src MAC → dst MAC                                  │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ L3 IP Packet                                    │ │
-│ │  src IP → dst IP                                │ │
-│ │ ┌─────────────────────────────────────────────┐ │ │
-│ │ │ L4 TCP Segment                              │ │ │
-│ │ │  src Port → dst Port                        │ │ │
-│ │ │ ┌─────────────────────────────────────────┐ │ │ │
-│ │ │ │ L7 Payload (HTTP 등)                    │ │ │ │
-│ │ │ └─────────────────────────────────────────┘ │ │ │
-│ │ └─────────────────────────────────────────────┘ │ │
-│ └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
+```text
+Ethernet frame
+  IP packet
+    TCP segment
+      HTTP payload
 ```
 
-볼 질문은 하나다. **각 홉에서 어떤 레이어의 헤더가 바뀌는가?**
+각 레이어가 보는 대상이 다르다.
 
----
+| 레이어 | 주소 | 의미 |
+|---|---|---|
+| L2 | MAC | 다음 홉까지 전달 |
+| L3 | IP | 최종 출발지와 최종 목적지 |
+| L4 | Port | 프로세스 간 연결 |
+| L7 | HTTP header/body | 애플리케이션 의미 |
 
-## 1. 일반 라우팅 (NAT 없음): L2만 바뀌고, L3/L4는 그대로
+## 일반 라우팅: L2만 바뀐다
 
-NAT가 없는 순수한 라우팅부터 보자.
+NAT이 없고 라우터만 지나는 경우, IP와 port는 유지된다. 각 홉에서 다음 장비로 보내기 위해 MAC만 새로 붙는다.
 
-### 시나리오: PC → 라우터 A → 라우터 B → 서버
+```text
+PC -> Router A -> Router B -> Server
 
-```
-PC (10.1.1.10)          라우터A              라우터B          서버 (10.3.3.30)
-MAC: aa:aa             MAC: bb:bb / cc:cc   MAC: dd:dd / ee:ee   MAC: ff:ff
-       │                     │                    │                   │
-       └────── 홉 1 ─────────┘                    │                   │
-                              └────── 홉 2 ────────┘                   │
-                                                   └────── 홉 3 ───────┘
-```
-
-> 라우터는 인터페이스(포트)가 여러 개이므로 MAC이 여러 개다. `bb:bb`는 PC 쪽 인터페이스, `cc:cc`는 라우터B 쪽 인터페이스.
-
-#### 홉 1: PC → 라우터 A
-
-```
-L2:  src MAC = aa:aa (PC)        dst MAC = bb:bb (라우터A 입구)
-L3:  src IP  = 10.1.1.10 (PC)   dst IP  = 10.3.3.30 (서버)      ← 안 바뀜
-L4:  src Port = 52431            dst Port = 80                    ← 안 바뀜
+L2 MAC: hop마다 변경
+L3 IP : client -> server 유지
+L4 port: client_port -> 443 유지
 ```
 
-PC는 "서버 `10.3.3.30`에 보내고 싶다"고 하지만, 직접 보낼 수 없으니 게이트웨이(라우터A)의 MAC 주소로 프레임을 보낸다. **L3 dst IP는 최종 목적지(서버)이고, L2 dst MAC은 다음 홉(라우터A)이다.**
+## SNAT: 출발지가 바뀐다
 
-#### 홉 2: 라우터 A → 라우터 B
+집 공유기나 NAT Gateway를 지나 인터넷으로 나갈 때는 source IP와 source port가 바뀐다.
 
-```
-L2:  src MAC = cc:cc (라우터A 출구)   dst MAC = dd:dd (라우터B 입구)   ← L2 바뀜!
-L3:  src IP  = 10.1.1.10             dst IP  = 10.3.3.30             ← 그대로
-L4:  src Port = 52431                dst Port = 80                    ← 그대로
-```
+```text
+내부:
+  192.168.0.10:52431 -> 93.184.216.34:443
 
-라우터A는 L2 프레임을 벗기고(decapsulate), 라우팅 테이블을 보고 다음 홉을 결정한 뒤, 새 L2 프레임으로 다시 감싼다(encapsulate). **L3/L4는 건드리지 않는다.**
-
-#### 홉 3: 라우터 B → 서버
-
-```
-L2:  src MAC = ee:ee (라우터B 출구)   dst MAC = ff:ff (서버)           ← L2 바뀜!
-L3:  src IP  = 10.1.1.10             dst IP  = 10.3.3.30             ← 그대로
-L4:  src Port = 52431                dst Port = 80                    ← 그대로
+외부:
+  203.0.113.1:30001 -> 93.184.216.34:443
 ```
 
-### 일반 라우팅에서 각 레이어의 변화
+NAT 장비는 매핑 테이블을 갖고 있다.
 
-```
-         홉 1           홉 2           홉 3
-L2 MAC:  aa→bb          cc→dd          ee→ff         ← 매 홉마다 바뀜
-L3 IP:   10.1.1.10 → 10.3.3.30                       ← 출발지~도착지 불변
-L4 Port: 52431 → 80                                   ← 출발지~도착지 불변
-```
+| 내부 | 외부 |
+|---|---|
+| `192.168.0.10:52431` | `203.0.113.1:30001` |
 
-> **왜 L2만 바뀌나?** L2(이더넷)는 "같은 네트워크 안에서 다음 장비까지" 프레임을 전달하는 역할이다. 네트워크가 바뀌면(라우터를 넘으면) L2 프레임을 벗기고 새로 만든다. 반면 L3 IP는 "최종 출발지 → 최종 목적지"를 나타내므로 중간에 바뀌지 않는다.
+서버 입장에서는 `192.168.0.10`을 볼 수 없다. `203.0.113.1`에서 요청이 온 것으로 보인다.
 
----
+## DNAT: 목적지가 바뀐다
 
-## 2. SNAT (Source NAT): L3 src IP + L4 src Port가 바뀐다
+로드밸런서나 포트포워딩에서는 destination IP와 port가 바뀐다.
 
-집에서 공유기를 쓰거나, 회사에서 NAT 게이트웨이를 쓸 때 일어나는 일이다.
+```text
+client -> LB VIP:
+  198.51.100.5:48000 -> 203.0.113.10:443
 
-### 시나리오: 집 PC → 공유기(NAT) → 인터넷 → 서버
-
-```
-PC (192.168.0.10)     공유기 (NAT)           서버 (93.184.216.34)
-사설 IP               WAN: 203.0.113.1       공인 IP
-                      LAN: 192.168.0.1
+LB -> backend:
+  198.51.100.5:48000 -> 10.0.1.50:8080
 ```
 
-#### 홉 1: PC → 공유기 (NAT 전)
+이 경우 source IP가 유지되면 백엔드는 클라이언트 IP를 직접 볼 수 있다. L4 로드밸런서에서 클라이언트 IP 보존이 가능한 이유다. 단, 응답 경로가 다시 LB를 통과하도록 설계되어야 한다.
 
-```
-L2:  src MAC = (PC)              dst MAC = (공유기 LAN)
-L3:  src IP  = 192.168.0.10     dst IP  = 93.184.216.34
-L4:  src Port = 52431            dst Port = 80
-```
+## L7 프록시: 새 연결을 만든다
 
-#### 홉 2: 공유기 → 인터넷 (NAT 후)
+ALB, Nginx, Envoy 같은 L7 프록시는 클라이언트 TCP 연결을 종료하고 백엔드에 새 TCP 연결을 만든다.
 
-```
-L2:  src MAC = (공유기 WAN)      dst MAC = (ISP 라우터)            ← L2 바뀜 (당연)
-L3:  src IP  = 203.0.113.1      dst IP  = 93.184.216.34          ← 🔴 src IP 바뀜!
-L4:  src Port = 30001            dst Port = 80                    ← 🔴 src Port 바뀜!
-```
+```text
+connection A:
+  client -> proxy
+  198.51.100.5:48000 -> 203.0.113.10:443
 
-**무슨 일이 일어났나?**
-
-NAT 테이블 (공유기 내부):
-
-| 내부 (변환 전) | 외부 (변환 후) |
-|--------------|--------------|
-| 192.168.0.10:52431 | 203.0.113.1:30001 |
-
-공유기가 하는 일:
-1. 나가는 패킷: src IP를 사설→공인으로, src Port를 새 포트로 변환
-2. NAT 테이블에 매핑 기록
-3. 돌아오는 패킷: dst 203.0.113.1:30001 → dst 192.168.0.10:52431로 역변환
-
-서버 입장에서는 `203.0.113.1:30001`에서 요청이 온 것으로 보인다. 사설 IP `192.168.0.10`은 보이지 않는다.
-
-#### 응답이 돌아올 때 (역방향)
-
-```
-서버 → 공유기:
-  L3: src=93.184.216.34  dst=203.0.113.1
-  L4: src=80             dst=30001
-
-공유기 → PC (NAT 역변환):
-  L3: src=93.184.216.34  dst=192.168.0.10     ← 🔴 dst IP 복원
-  L4: src=80             dst=52431             ← 🔴 dst Port 복원
+connection B:
+  proxy -> app
+  10.0.1.100:55000 -> 10.0.2.50:8080
 ```
 
-### SNAT에서 각 레이어의 변화
+백엔드가 보는 peer IP는 proxy IP다. 원래 클라이언트 IP를 전달하려면 `X-Forwarded-For`나 `Forwarded` 같은 L7 헤더가 필요하다.
 
-```
-         NAT 전 (내부)            NAT 후 (외부)
-L2 MAC:  바뀜 (매 홉마다)         바뀜 (매 홉마다)
-L3 src:  192.168.0.10       →    203.0.113.1          ← 🔴 변환됨
-L3 dst:  93.184.216.34           93.184.216.34         ← 그대로
-L4 src:  52431              →    30001                 ← 🔴 변환됨
-L4 dst:  80                      80                    ← 그대로
-```
+## 비교표
 
----
-
-## 3. DNAT (Destination NAT): L3 dst IP + L4 dst Port가 바뀐다
-
-서버 앞에 로드밸런서를 두거나, 포트포워딩을 할 때 일어나는 일이다.
-
-### 시나리오: 클라이언트 → LB (DNAT) → 백엔드 서버
-
-```
-클라이언트 (198.51.100.5)     LB (VIP: 203.0.113.10)     백엔드 (10.0.1.50)
-```
-
-#### 클라이언트 → LB
-
-```
-L3:  src IP  = 198.51.100.5     dst IP  = 203.0.113.10 (VIP)
-L4:  src Port = 48000            dst Port = 443
-```
-
-#### LB → 백엔드 (DNAT 후)
-
-```
-L3:  src IP  = 198.51.100.5     dst IP  = 10.0.1.50          ← 🔵 dst IP 바뀜!
-L4:  src Port = 48000            dst Port = 8080               ← 🔵 dst Port 바뀜!
-```
-
-**src IP가 그대로이므로**, 백엔드 서버는 클라이언트의 진짜 IP를 볼 수 있다. 이것이 L4 로드밸런서(AWS NLB 등)에서 "클라이언트 IP 보존"이 가능한 이유이다.
-
-> 단, 응답 패킷이 LB를 거치지 않고 직접 클라이언트로 가면 문제가 생긴다 (src=10.0.1.50인데 클라이언트는 203.0.113.10에서 응답을 기대). 이를 해결하기 위해 DSR(Direct Server Return) 또는 LB를 경유하는 리턴 경로 설정이 필요하다.
-
----
-
-## 4. Full NAT (SNAT + DNAT): L7 프록시가 하는 일
-
-ALB, Nginx 리버스 프록시 등 L7 프록시는 TCP 연결 자체를 끊고 새로 맺는다. 이건 NAT이라기보다 **완전히 새로운 연결**이다.
-
-### 시나리오: 클라이언트 → ALB → 백엔드
-
-```
-=== 연결 A: 클라이언트 → ALB ===
-L3:  src = 198.51.100.5      dst = 203.0.113.10 (ALB)
-L4:  src = 48000              dst = 443
-
-=== 연결 B: ALB → 백엔드 (완전히 별개의 TCP 연결) ===
-L3:  src = 10.0.1.100 (ALB)  dst = 10.0.2.50 (백엔드)    ← 🔴 src, dst 둘 다 바뀜
-L4:  src = 55000 (ALB)        dst = 8080                   ← 🔴 src, dst 둘 다 바뀜
-```
-
-연결 A와 연결 B는 **아무 관계가 없는 별개의 TCP 세션**이다. 백엔드가 보는 건 연결 B뿐이므로:
-- src IP = ALB의 IP → 클라이언트 IP를 알 수 없음
-- 그래서 `X-Forwarded-For` 같은 **L7 헤더**로 원래 IP를 전달해야 함
-
----
-
-## 전체 비교표
-
-| | L2 (MAC) | L3 src IP | L3 dst IP | L4 Port | 클라이언트 IP |
+| 상황 | L2 MAC | L3 src | L3 dst | L4 port | 앱 서버가 보는 클라이언트 |
 |---|---|---|---|---|---|
-| 일반 라우팅 | 매 홉 변경 | 불변 | 불변 | 불변 | 보임 |
-| SNAT (공유기) | 매 홉 변경 | 변환 | 불변 | 변환 | 안 보임 |
-| DNAT (L4 LB) | 매 홉 변경 | 불변 | 변환 | 변환 | 보임 |
-| Full NAT (L7 프록시) | 매 홉 변경 | 변환 | 변환 | 전부 변환 | 안 보임 |
+| 일반 라우팅 | 매 홉 변경 | 유지 | 유지 | 유지 | 원 클라이언트 |
+| SNAT | 매 홉 변경 | 변경 | 유지 | src 변경 | NAT 장비 |
+| DNAT | 매 홉 변경 | 유지 | 변경 | dst 변경 | 원 클라이언트 가능 |
+| L7 프록시 | 새 연결 | 프록시 IP | 백엔드 IP | 새 포트 | 프록시 |
 
-이 표가 [[클라이언트의 IP를 알아내는 방법]]에서 다룬 내용의 근본적인 이유이다:
-- **DNAT만 하는 L4 LB** → src IP 보존 → `RemoteAddr`로 클라이언트 IP를 알 수 있음
-- **Full NAT인 L7 프록시** → src IP 소실 → `X-Forwarded-For` 등 L7 헤더가 필요함
-
----
+`RemoteAddr`가 왜 ALB 주소인지, NLB에서는 왜 원 IP가 보일 수 있는지, XFF를 왜 신뢰 경계와 함께 봐야 하는지가 여기서 나온다.
 
 ## 참고자료
 
-- [RFC 791 - Internet Protocol (IPv4)](https://datatracker.ietf.org/doc/html/rfc791) — IP 패킷 헤더 구조와 라우팅 원리의 원본 명세
-- [RFC 2663 - IP Network Address Translator (NAT) Terminology and Considerations](https://datatracker.ietf.org/doc/html/rfc2663) — SNAT, DNAT 등 NAT 유형에 대한 IETF 공식 용어 정의
-- [RFC 6269 - Issues with IP Address Sharing](https://datatracker.ietf.org/doc/html/rfc6269) — NAT/CGNAT 환경에서의 IP 공유로 인한 보안 이슈
-- [AWS - Network Load Balancer Target Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html) — NLB(L4 LB)의 DNAT 기반 클라이언트 IP 보존 동작
-- [AWS - HTTP headers and Application Load Balancers](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html) — ALB(L7 프록시)가 Full NAT 후 XFF 헤더로 원래 IP를 전달하는 방식
-- [Cloudflare - What is a MAC address?](https://www.cloudflare.com/learning/network-layer/what-is-a-mac-address/) — L2 MAC 주소가 매 홉마다 바뀌는 이유
+- [RFC 791 - Internet Protocol](https://datatracker.ietf.org/doc/html/rfc791)
+- [RFC 2663 - NAT Terminology](https://datatracker.ietf.org/doc/html/rfc2663)
+- [AWS ALB X-Forwarded headers](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html)

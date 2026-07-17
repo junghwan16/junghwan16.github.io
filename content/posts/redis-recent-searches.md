@@ -5,228 +5,113 @@ date: 2026-01-24 19:00:00 +0900
 categories: [backend, redis]
 ---
 
-최근 검색 기록은 UI만 보면 별것 없어 보인다. 하지만 서버 쪽에서는 같은 검색어를 다시 검색했을 때 위치를 올려야 하고, 최신순을 유지해야 하고, 오래된 항목은 잘라내야 한다. 유저별로 따로 관리해야 하니 append list로 끝나지 않는다.
+최근 검색 기록은 append list처럼 보이지만 요구사항이 조금 더 있다. 같은 검색어를 다시 검색하면 하나만 남기고 최신 위치로 올려야 한다. 최신순 조회가 필요하고, 오래된 항목도 잘라내야 한다.
 
-## 먼저 정할 것
+이 요구사항에는 Redis ZSET이 잘 맞는다.
 
-> - 최근 몇 개를 보여줄 것인가? (노출 N개 vs 저장 M개)
-> - 같은 검색어를 다시 검색하면 어떻게 처리하는가?
-> - 검색 기록을 얼마나 오래 보관할 것인가?
-> - 검색 기록 저장 실패가 검색 자체에 영향을 주면 안 된다
+## 요구사항
 
-## 요구사항 정의
-
-| 항목 | 정의 |
-|------|------|
-| 대상 | 로그인 유저 기준 (`userId` 단위) |
-| 노출 | 최근 N개 (예: 20개 노출, 100개 저장) |
-| 정렬 | 최신 순 |
-| 중복 | 같은 검색어는 하나만 유지, 재검색 시 최신으로 끌어올림 |
-| 삭제 | 항목 삭제 / 전체 삭제 지원 |
-| 보관 | 키 단위 TTL 90일 (슬라이딩) |
-
-## ZSET을 쓰는 이유
-
-이 기능에서 필요한 연산은 세 가지다. 최신순 조회, 중복 제거, 오래된 항목 삭제. Redis ZSET은 이 셋을 한 키 안에서 처리할 수 있다.
-
-| 요구사항 | ZSET 해결 방법 |
-|----------|---------------|
-| 최근순 조회 | `ZREVRANGE` |
-| 중복 제거 + 최신화 | 동일 member에 score만 업데이트 |
-| N개 제한 | `ZREMRANGEBYRANK`로 오래된 것 제거 |
+| 항목 | 결정 |
+|---|---|
+| 단위 | 로그인 유저별 |
+| 정렬 | 최신순 |
+| 중복 | 같은 검색어는 하나만 유지 |
+| 제한 | 최근 N개만 저장 또는 노출 |
+| 보관 | 키 단위 TTL |
+| 장애 | 저장 실패가 검색 자체를 막으면 안 됨 |
 
 ## 데이터 모델
 
-```
-키: recentsearch:{userId}
-자료구조: ZSET
-  - member: 정규화된 검색어
-  - score: 타임스탬프 (ms)
-```
-
-## 타임스탬프 충돌 처리
-
-ms 단위는 충돌 가능하다. 안정적인 정렬을 위해 다음과 같이 처리한다:
-
-```python
-score = now_ms * 1000 + (now_ns % 1000)
-# 또는
-score = now_ms + random.randint(0, 999)
+```text
+key    = recentsearch:{userId}
+type   = ZSET
+member = 정규화된 검색어
+score  = 검색 시각
 ```
 
-## 원자성: Lua 스크립트
+ZSET은 member가 유일하다. 같은 검색어를 다시 `ZADD`하면 score만 갱신되므로 중복 제거와 최신화가 동시에 된다.
 
-동시 요청 시 N 제한이 깨지거나 TTL 갱신이 누락되는 것을 방지해야 한다. Lua 스크립트로 세 연산을 하나로 묶는다:
+```redis
+ZADD recentsearch:42 1760000000000 "redis zset"
+ZREVRANGE recentsearch:42 0 19
+```
+
+최신순 조회는 `ZREVRANGE`로 끝난다.
+
+## 쓰기는 원자적으로 묶는다
+
+저장할 때 필요한 작업은 세 가지다.
+
+- 검색어 추가 또는 score 갱신
+- TTL 갱신
+- 최대 개수 초과분 제거
+
+따로 실행하면 동시 요청에서 제한 개수가 깨질 수 있다. Lua로 묶는다.
 
 ```lua
 -- KEYS[1]: recentsearch:{userId}
--- ARGV: member, score, maxN, ttlSeconds
-local key = KEYS[1]
-local member = ARGV[1]
-local score = tonumber(ARGV[2])
-local maxN = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
+-- ARGV[1]: query
+-- ARGV[2]: score
+-- ARGV[3]: max_items
+-- ARGV[4]: ttl_seconds
+redis.call("ZADD", KEYS[1], ARGV[2], ARGV[1])
+redis.call("EXPIRE", KEYS[1], ARGV[4])
 
-redis.call("ZADD", key, score, member)
-redis.call("EXPIRE", key, ttl)
-
-local overflow = redis.call("ZCARD", key) - maxN
+local overflow = redis.call("ZCARD", KEYS[1]) - tonumber(ARGV[3])
 if overflow > 0 then
-  redis.call("ZREMRANGEBYRANK", key, 0, overflow - 1)
+  redis.call("ZREMRANGEBYRANK", KEYS[1], 0, overflow - 1)
 end
+
 return 1
 ```
 
-여기서는 `ZADD` + `EXPIRE` + `TRIM`이 한 번에 성공하거나 실패해야 한다.
+score는 millisecond timestamp면 충분한 경우가 많다. 같은 ms에 여러 검색이 들어오는 것이 문제라면 `now_ms * 1000 + sequence`처럼 tie-breaker를 붙인다.
 
-## API 설계
+## API는 단순하게 둔다
 
-API는 Redis 명령어와 거의 1:1로 매핑된다.
-
-### 조회
-
-```
-GET /recent-searches?limit=20
-```
-
-```redis
-ZREVRANGE recentsearch:{userId} 0 19 WITHSCORES
-```
-
-### 개별 삭제
-
-```
+```text
+GET    /recent-searches?limit=20
 DELETE /recent-searches/{query}
-```
-
-```redis
-ZREM recentsearch:{userId} {query}
-```
-
-### 전체 삭제
-
-```
 DELETE /recent-searches
 ```
 
+각각 Redis 명령으로 바로 대응된다.
+
 ```redis
+ZREVRANGE recentsearch:{userId} 0 19
+ZREM recentsearch:{userId} {query}
 DEL recentsearch:{userId}
 ```
 
-## TTL 정책
+## 검색어 정규화가 중요하다
 
-### 키 단위 TTL (슬라이딩)
+정규화하지 않으면 `" 카페  라떼 "`, `"카페 라떼"`, `"카페라떼"`가 모두 다른 검색어가 된다.
 
-- 매 검색마다 TTL 90일로 갱신
-- 활동 유저 키는 유지, 비활동 유저는 자동 삭제
-- 저장 비용을 키 단위로 예측할 수 있음
+최소한 아래 처리는 저장 전에 한다.
 
-### 항목별 90일이 필요하면?
+- 앞뒤 공백 제거
+- 연속 공백 축약
+- 길이 제한
+- 필요하면 대소문자 정규화
+- 한글/유니코드 입력은 NFC 정규화 검토
 
-```redis
-ZREMRANGEBYSCORE key -inf (now-90d)
+검색 기록에는 개인정보나 민감한 검색어가 들어갈 수 있다. TTL, 전체 삭제, 계정 삭제 시 키 삭제는 기능 요구사항이 아니라 개인정보 처리 요구사항에 가깝다.
+
+## 장애 격리
+
+최근 검색어 저장은 검색 기능의 부가 기능이다. Redis 장애 때문에 실제 검색 요청이 실패하면 안 된다.
+
+```text
+검색 실행 -> 결과 반환
+          -> 최근 검색어 저장은 best effort
 ```
 
-모든 write마다 수행하면 비용이 증가하므로, 별도 배치 job으로 밀어내는 편이 낫다.
+쓰기 실패는 로그나 비동기 재시도로 처리하고, 사용자 요청의 성공 여부와 분리한다.
 
-## 트래픽/성능 계산
+## 남는 기준
 
-### 가정
-
-- DAU 1,000,000
-- 검색 5회/유저/일 → 5,000,000 searches/day
-- 평균 QPS ≈ 58
-- 피크 10배 → ~580 QPS
-
-### 운영 판단
-
-- 이 정도 QPS라면 Redis 단일 클러스터 범위에 들어온다
-- 저장은 best-effort로 비동기 처리한다
-- Redis 장애 시에도 검색 기능은 정상 동작하도록 격리해야 한다
-
-## 메모리 산정
-
-### 상한 추정
-
-- 활성 유저 100만 x 100개 = 1억 엔트리
-- 중복 제거 + TTL로 실제는 훨씬 적음
-- 비활동 유저 키는 자동 삭제
-
-### 필요 파라미터
-
-- 평균 검색어 길이 (한글 UTF-8은 3바이트/글자)
-- ZSET 엔트리 오버헤드
-- 실측 기반으로 조정
-
-## 엣지 케이스 / 보안
-
-| 항목 | 대응 |
-|------|------|
-| PII | 보관 최소화, TTL, 삭제 기능 필수 |
-| 계정 삭제 | 유저 탈퇴 시 키 삭제 |
-| 검색어 정규화 | 공백 트림, 대소문자/유니코드 정규화 |
-| 악성 입력 | 길이 제한 (예: 100자), rate-limit |
-
-## 짧게 말하면
-
-> "최근 검색 기록은 유저별로 최근 N개를 최신순으로 보여주는 기능입니다. 중복 검색어는 하나만 유지하고 재검색 시 최신으로 끌어올립니다.
->
-> Redis ZSET을 사용하고 키는 `recentsearch:{userId}`로 둡니다. member는 정규화된 검색어, score는 ms 타임스탬프입니다.
->
-> 저장 시 `ZADD` + `EXPIRE` + `ZREMRANGEBYRANK`를 Lua로 원자적으로 묶어 N개 제한과 TTL을 보장합니다.
->
-> 조회는 `ZREVRANGE`, 삭제는 `ZREM`/`DEL`입니다.
->
-> 검색 저장은 best-effort로 분리해서 Redis 장애가 검색 자체에 영향을 주지 않게 합니다."
-
----
-
-## 대규모 성능
-
-ZSET은 내부적으로 skiplist를 사용한다.
-
-| 연산 | 시간 복잡도 | 100개 | 10만 개 |
-|------|------------|-------|---------|
-| ZADD | O(log N) | 0.01ms | 0.02ms |
-| ZREVRANGE 20 | O(log N + M) | 0.01ms | 0.02ms |
-| ZREMRANGEBYRANK | O(log N + M) | 0.01ms | 0.02ms |
-
-100개 제한이면 N이 사실상 100으로 고정된다. 이 규모에서는 성능보다 TTL, 삭제, 장애 격리를 먼저 본다.
-
----
-
-## 검색어 정규화
-
-```python
-import unicodedata
-
-def normalize_query(q: str) -> str:
-    q = q.strip()
-    q = q.lower()
-    # 유니코드 정규화 (한글 자모 분리 방지)
-    q = unicodedata.normalize("NFC", q)
-    # 연속 공백 제거
-    q = " ".join(q.split())
-    return q[:100]  # 길이 제한
-
-# "  카페   라떼  " → "카페 라떼"
-```
-
-정규화 안 하면 "카페라떼"와 "카페 라떼"가 별개로 저장된다.
-
----
-
-## 자가 체크
-
-> - `ZADD` + `EXPIRE` + `ZREMRANGEBYRANK`를 원자적으로 처리하고 있는가?
-> - 검색어를 저장하기 전에 정규화(trim, lowercase 등)하고 있는가?
-> - 유저 탈퇴 시 검색 기록 키를 삭제하는 로직이 있는가?
-> - Redis 장애 시에도 검색 기능이 정상 동작하도록 격리되어 있는가?
-
----
+최근 검색 기록은 "최신순 + 중복 제거 + 개수 제한"이 핵심이다. 이 셋을 한 자료구조에서 처리할 수 있어서 ZSET이 맞다. 구현의 품질은 Redis 명령을 아는 데서 갈리는 것이 아니라, 원자성, 정규화, TTL, 장애 격리를 같이 챙기는 데서 갈린다.
 
 ## 참고자료
 
-- [Redis - Sorted Sets](https://redis.io/docs/latest/develop/data-types/sorted-sets/)
-- [Redis - ZADD](https://redis.io/docs/latest/commands/zadd/)
-- [Redis - Lua Scripting](https://redis.io/docs/latest/develop/interact/programmability/eval-intro/)
+- [Redis Sorted Sets](https://redis.io/docs/latest/develop/data-types/sorted-sets/)

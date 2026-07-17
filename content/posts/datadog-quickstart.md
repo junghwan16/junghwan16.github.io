@@ -3,6 +3,7 @@ title: "Datadog Quick Start에서 처음 만진 것들"
 url: "/devops/datadog/2026/03/08/datadog-quickstart/"
 date: 2026-03-08 21:00:00 +0900
 categories: [devops, datadog]
+draft: true
 ---
 
 Datadog을 제대로 써보기 전에 공식 Quick Start 랩부터 돌려봤다. Dashboard, Logs, Software Catalog, Monitor를 샘플 서비스로 만져보는 코스다. 문서만 읽을 때보다 "문제가 생겼을 때 어디서부터 눌러볼지"가 조금 더 선명해졌다.

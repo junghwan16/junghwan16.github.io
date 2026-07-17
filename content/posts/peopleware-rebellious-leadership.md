@@ -3,6 +3,7 @@ title: "혁신에는 약간의 반항이 필요하다"
 url: "/essay/organization/2026/06/20/peopleware-rebellious-leadership/"
 date: 2026-06-20 11:00:00 +0900
 categories: [essay, organization]
+draft: true
 ---
 
 [피플웨어](https://en.wikipedia.org/wiki/Peopleware:_Productive_Projects_and_Teams)를 읽다가 "반항적인 리더십"이라는 표현에서 멈췄다.

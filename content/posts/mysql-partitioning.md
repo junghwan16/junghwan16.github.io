@@ -1,232 +1,106 @@
 ---
-title: "테이블이 너무 커졌을 때, 파티셔닝을 고려해야 할까"
+title: "MySQL 파티셔닝은 언제 도움이 될까"
 url: "/database/mysql/2026/01/23/mysql-partitioning/"
 date: 2026-01-23 20:00:00 +0900
 categories: [database, mysql]
 ---
 
-회사에서 파티셔닝을 자주 사용하는데, 막상 내 이해도가 따라가지 못하고 있다는 걸 깨달았다. FK를 아예 지원하지 않는다는 사실조차 모르고 있었다. 이번 기회에 동작 조건을 다시 봤다. 참고로 MySQL은 글로벌 인덱스를 지원하지 않으며, 각 파티션 내에 로컬 인덱스가 독립적으로 생성된다.
+테이블이 커졌다고 바로 파티셔닝을 넣으면 안 된다. MySQL 파티셔닝은 만능 성능 기능이 아니다. 쿼리가 파티션 키로 잘 잘리고, 오래된 데이터를 파티션 단위로 관리해야 할 때 효과가 난다.
 
-**수천만 건 이하**라면 인덱스 최적화가 먼저다. 파티셔닝은 관리 대상을 늘리므로, 정말 필요할 때만 도입해야 한다.
+수천만 건 이하에서 단순 조회가 느리다면 보통은 인덱스, 쿼리, buffer pool, 통계가 먼저다.
 
-## 파티셔닝이란?
+## 파티셔닝이 하는 일
 
-> 거대한 테이블을 작은 덩어리로 쪼개어 물리적으로 나누어 저장하는 기술
+파티셔닝은 하나의 논리 테이블을 여러 물리 조각으로 나눠 저장한다.
 
-사용자에게는 하나의 논리적 테이블로 보이지만, 내부적으로는 여러 파일로 나누어 관리된다.
-
-```
-전체 테이블
-┌─────────────────────────┐
-│ 2023년 데이터 → 파티션 A │
-│ 2024년 데이터 → 파티션 B │
-│ 2025년 데이터 → 파티션 C │
-└─────────────────────────┘
+```text
+orders
+  p2024
+  p2025
+  p2026
 ```
 
-## 파티셔닝이 도움이 되는 경우
+사용자는 `orders` 하나를 조회하지만, 옵티마이저는 조건에 따라 필요한 파티션만 읽을 수 있다. 이를 partition pruning이라고 한다.
 
-| 장점 | 설명 |
-|------|------|
-| **쿼리 성능 향상** | WHERE 조건에 맞는 파티션만 스캔 |
-| **데이터 관리 용이** | 오래된 파티션을 통째로 삭제 (DELETE보다 훨씬 빠름) |
-| **저장 용량 분산** | 여러 디스크에 분산 저장 가능 |
-
-## PK/Unique Key 제약
-
-**파티션 키는 PK나 Unique Key에 포함되어야 한다.**
-
-이유: "모든 파티션을 뒤지지 않고도 유일성을 보장하기 위해서"
-
-예를 들어 `id`가 PK인 테이블을 `created_at` 기준으로 파티셔닝했다고 가정해보자:
-
-```
-id=10 삽입 시도
-  ↓
-이 id가 유일한지 확인해야 함
-  ↓
-created_at이 파티션 키이므로 id=10이 어느 파티션에 있는지 알 수 없음
-  ↓
-모든 파티션을 다 뒤져야 함 → 파티셔닝 의미 없음
+```sql
+SELECT *
+FROM orders
+WHERE order_date >= '2026-01-01'
+  AND order_date <  '2026-02-01';
 ```
 
-## 파티셔닝 종류
+`order_date`로 RANGE 파티셔닝되어 있다면 해당 월 또는 연도 파티션만 읽는다. 반대로 조건에 파티션 키가 없으면 모든 파티션을 읽는다.
 
-### RANGE 파티셔닝
+## 효과가 나는 경우
 
-날짜/숫자 범위로 분할:
+| 상황 | 이유 |
+|---|---|
+| 날짜 기준으로 오래된 데이터를 자주 삭제 | `DROP PARTITION`이 대량 `DELETE`보다 훨씬 싸다 |
+| 대부분의 쿼리가 파티션 키를 조건에 포함 | pruning으로 읽는 범위가 줄어든다 |
+| 운영상 데이터 생명주기가 명확함 | 월별, 일별 보관 정책을 테이블 구조로 표현 가능 |
+
+로그, 이벤트, 주문 이력처럼 시간 축으로 계속 쌓이고 오래된 범위를 통째로 지우는 데이터가 대표적이다.
+
+## 효과가 약한 경우
+
+| 상황 | 문제 |
+|---|---|
+| WHERE에 파티션 키가 없음 | 모든 파티션 스캔 |
+| PK/Unique 제약과 파티션 키가 안 맞음 | 테이블 설계부터 막힘 |
+| FK가 필요함 | MySQL 파티셔닝 제약과 충돌 |
+| 작은 테이블 | 관리 비용만 늘어남 |
+| 파티션 수가 과도함 | 메타데이터와 운영 부담 증가 |
+
+특히 MySQL에서는 파티션 키가 모든 unique key에 포함되어야 한다. 전역 unique index가 없기 때문에, MySQL이 전체 파티션을 뒤지지 않고 유일성을 보장하려면 파티션 키가 필요하다.
 
 ```sql
 CREATE TABLE orders (
-    id INT NOT NULL,
+    id BIGINT NOT NULL,
     order_date DATE NOT NULL,
-    amount DECIMAL(10,2),
-    PRIMARY KEY (id, order_date)  -- 파티션 키 포함!
+    amount DECIMAL(10, 2),
+    PRIMARY KEY (id, order_date)
 )
-PARTITION BY RANGE (YEAR(order_date)) (
-    PARTITION p2023 VALUES LESS THAN (2024),
-    PARTITION p2024 VALUES LESS THAN (2025),
-    PARTITION p2025 VALUES LESS THAN (2026),
-    PARTITION p_future VALUES LESS THAN MAXVALUE
+PARTITION BY RANGE COLUMNS(order_date) (
+    PARTITION p202601 VALUES LESS THAN ('2026-02-01'),
+    PARTITION p202602 VALUES LESS THAN ('2026-03-01'),
+    PARTITION pmax VALUES LESS THAN (MAXVALUE)
 );
 ```
 
-**적합한 경우**: 날짜별 로그, 월별 매출 데이터
+`PRIMARY KEY (id)`만 두고 `order_date`로 파티셔닝하려 하면 제약에 걸린다.
 
-### LIST 파티셔닝
+## 운영에서 보는 지점
 
-미리 정해진 값 목록으로 분할:
+파티셔닝의 장점은 조회보다 삭제와 보관 정책에서 더 선명할 때가 많다.
 
 ```sql
-CREATE TABLE users (
-    id INT NOT NULL,
-    country_code VARCHAR(2) NOT NULL,
-    PRIMARY KEY (id, country_code)
-)
-PARTITION BY LIST COLUMNS(country_code) (
-    PARTITION p_kr VALUES IN ('KR'),
-    PARTITION p_us VALUES IN ('US'),
-    PARTITION p_jp VALUES IN ('JP')
+ALTER TABLE orders DROP PARTITION p202401;
+```
+
+한 달치 데이터를 `DELETE`로 지우면 undo, redo, lock, replication lag를 신경 써야 한다. 파티션 삭제는 해당 파티션을 통째로 제거하므로 훨씬 단순하다. 대신 되돌리기도 어렵다. 백업과 보관 정책이 먼저 정리되어 있어야 한다.
+
+새 파티션을 미리 만들지 않으면 `pmax`에 데이터가 몰릴 수 있다. RANGE 파티셔닝은 파티션 생성 작업이 운영 캘린더에 들어가야 한다.
+
+```sql
+ALTER TABLE orders REORGANIZE PARTITION pmax INTO (
+    PARTITION p202603 VALUES LESS THAN ('2026-04-01'),
+    PARTITION pmax VALUES LESS THAN (MAXVALUE)
 );
 ```
 
-**적합한 경우**: 국가 코드, 카테고리 ID
+## 도입 전 질문
 
-### HASH 파티셔닝
+- 느린 쿼리의 WHERE 절에 파티션 키가 항상 들어가는가?
+- `EXPLAIN PARTITIONS`에서 실제로 pruning이 되는가?
+- 오래된 데이터를 파티션 단위로 지우는 요구가 있는가?
+- 모든 unique key에 파티션 키를 포함할 수 있는가?
+- FK를 포기하거나 애플리케이션에서 보완할 수 있는가?
+- 파티션 생성, 삭제, 백업, 복구 절차가 운영에 들어갈 수 있는가?
 
-균등하게 분산:
-
-```sql
-CREATE TABLE sessions (
-    id INT NOT NULL PRIMARY KEY
-)
-PARTITION BY HASH(id)
-PARTITIONS 4;
-```
-
-**적합한 경우**: 특정 그룹핑이 어려운 경우
-
-### KEY 파티셔닝
-
-HASH와 유사하지만 MySQL 내부 해시 함수(`MD5` 또는 `PASSWORD()`)를 사용한다. PK 기반으로 균등 분산할 때 유용하며, 파티션 키에 별도 표현식을 쓸 필요가 없다.
-
-```sql
-CREATE TABLE logs (
-    id INT NOT NULL PRIMARY KEY
-)
-PARTITION BY KEY(id)
-PARTITIONS 4;
-```
-
-## 파티션 프루닝 (Partition Pruning)
-
-파티셔닝의 성능은 여기서 갈린다.
-
-옵티마이저가 WHERE 절을 보고 불필요한 파티션을 제외한다.
-
-### 프루닝이 동작하는 경우
-
-```sql
-EXPLAIN SELECT * FROM orders WHERE order_date = '2024-06-01';
-```
-
-```
-partitions: p2024  ← 이 파티션만 스캔
-```
-
-### 프루닝이 동작하지 않는 경우
-
-```sql
-EXPLAIN SELECT * FROM orders WHERE amount > 1000;
-```
-
-```
-partitions: p2023,p2024,p2025,p_future  ← 모든 파티션 스캔
-```
-
-WHERE 절에 파티션 키가 없으면 **모든 파티션을 스캔**한다.
-
-## FK(Foreign Key) 미지원
-
-MySQL InnoDB는 **파티셔닝된 테이블에 FK를 지원하지 않는다.**
-
-### 대안
-
-| 방법 | 설명 |
-|------|------|
-| **애플리케이션 레벨 검증** | 코드에서 직접 데이터 존재 여부 확인 |
-| **역정규화** | 필요한 정보를 중복 저장하여 JOIN 감소 |
-| **설계 재검토** | FK가 꼭 필요하다면 파티셔닝이 최선인지 재고 |
-
-```python
-# 애플리케이션 레벨 검증 예시
-def delete_user(user_id: int):
-    if has_orders(user_id):
-        raise Error("관련 주문이 존재합니다")
-    delete_user_from_db(user_id)
-```
-
-## 자주 하는 실수
-
-| 실수 | 결과 |
-|------|------|
-| 파티션 키 없이 쿼리 | 모든 파티션 풀 스캔 |
-| PK에 파티션 키 미포함 | 테이블 생성 자체가 안 됨 |
-| FK가 필요한 테이블에 적용 | FK 제약 사용 불가 |
-| 너무 많은 파티션 | 관리 대상 증가 |
-
-파티셔닝의 성능은 파티션 키와 프루닝 여부에 달려 있다. 쿼리가 파티션 키를 타지 못하면 파티션을 나눈 효과가 거의 사라진다.
-
----
-
-## 파티션 추가/재분배
-
-### 새 파티션 추가 (RANGE)
-
-```sql
--- 2026년 파티션 추가
-ALTER TABLE orders ADD PARTITION (
-    PARTITION p2026 VALUES LESS THAN (2027)
-);
-```
-
-`p_future`가 있으면 먼저 재구성이 필요하다:
-
-```sql
-ALTER TABLE orders REORGANIZE PARTITION p_future INTO (
-    PARTITION p2026 VALUES LESS THAN (2027),
-    PARTITION p_future VALUES LESS THAN MAXVALUE
-);
-```
-
-### 파티션 삭제 (오래된 데이터 제거)
-
-```sql
--- 2023년 데이터 삭제 (DELETE보다 훨씬 빠름)
-ALTER TABLE orders DROP PARTITION p2023;
-```
-
-**주의**: 파티션 삭제는 해당 데이터를 **영구 삭제**한다. 백업 확인 필수.
-
----
-
-## 성능 벤치마크
-
-아래 수치는 상대적인 차이를 보여주기 위한 참고치이며, 정확한 성능은 하드웨어, MySQL 버전, `innodb_buffer_pool_size` 등에 따라 달라진다. (1억 건, 연도별 RANGE 파티셔닝, 5개 파티션):
-
-| 쿼리 | 파티셔닝 전 | 파티셔닝 후 |
-|------|-----------|-----------|
-| 특정 연도 조회 | 8.2초 | **0.4초** (프루닝) |
-| 전체 집계 | 12.5초 | 11.8초 (큰 차이 없음) |
-| 오래된 데이터 삭제 | 45분 (DELETE) | **3초** (DROP PARTITION) |
-
-프루닝이 동작해야 효과가 있다. 파티션 키가 WHERE에 없으면 모든 파티션을 스캔한다.
-
----
+이 질문에 답하지 못하면 파티셔닝은 성능 개선이 아니라 복잡도 증가가 될 가능성이 높다.
 
 ## 참고자료
 
-- [MySQL 8.0 Reference Manual - Partitioning](https://dev.mysql.com/doc/refman/8.0/en/partitioning.html)
-- [MySQL 8.0 - Partition Pruning](https://dev.mysql.com/doc/refman/8.0/en/partitioning-pruning.html)
-- [MySQL 8.0 - Partitioning Limitations](https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations.html)
-- [Percona - MySQL Partitioning](https://www.percona.com/blog/mysql-partitioning/)
+- [MySQL Partitioning](https://dev.mysql.com/doc/refman/8.0/en/partitioning.html)
+- [MySQL Partition Pruning](https://dev.mysql.com/doc/refman/8.0/en/partitioning-pruning.html)
+- [MySQL Partitioning Limitations](https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations.html)
