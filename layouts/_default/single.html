@@ -28,6 +28,4 @@
 {{ with .PrevInSection }}<a class="post-nav__item" href="{{ .RelPermalink }}"><span>이전 글</span>{{ .Title }}</a>{{ end }}
 {{ with .NextInSection }}<a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}"><span>다음 글</span>{{ .Title }}</a>{{ end }}
 </nav>
-
-{{ partial "giscus.html" . }}
 {{ end }}

@@ -7,12 +7,6 @@ enableRobotsTXT = true
 [params]
   description = "Backend Engineer"
 
-[params.giscus]
-  repo = "junghwan16/junghwan16.github.io"
-  repo_id = "R_kgDOQ_xZJQ"
-  category = "Announcements"
-  category_id = "DIC_kwDOQ_xZJc4C2AmU"
-
 [taxonomies]
   category = "categories"
   tag = "tags"
