@@ -1,0 +1,8 @@
+<search>
+<form action="https://www.google.com/search" method="get">
+<label class="sr-only" for="{{ .id }}">검색</label>
+<input type="search" id="{{ .id }}" name="q"{{ with .list }} list="{{ . }}"{{ end }} placeholder="글 제목 또는 키워드">
+<input type="hidden" name="as_sitesearch" value="{{ (urls.Parse site.BaseURL).Host }}">
+<button type="submit">검색</button>
+</form>
+</search>

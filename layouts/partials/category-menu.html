@@ -1,0 +1,10 @@
+<div id="category-menu" popover>
+<nav aria-label="주제별 글">
+<ul class="menu-list">
+{{ range .Site.Taxonomies.categories.ByCount }}
+<li><a href="{{ .Page.RelPermalink }}"><span>{{ .Page.Title }}</span> <small>{{ .Count }}</small></a></li>
+{{ end }}
+</ul>
+<p class="menu-foot"><a href="{{ "/categories/" | relURL }}">전체 분류 페이지 →</a></p>
+</nav>
+</div>

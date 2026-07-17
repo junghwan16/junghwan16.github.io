@@ -1,0 +1,2 @@
+{{- $u := urls.Parse .Destination -}}
+<a href="{{ .Destination | safeURL }}"{{ if and $u.Host (ne $u.Host (urls.Parse site.BaseURL).Host) }} rel="external"{{ end }}>{{ .Text }}</a>

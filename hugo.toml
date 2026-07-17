@@ -1,11 +1,13 @@
 baseURL = "https://junghwan16.github.io/"
 locale = "ko"
-title = "2^2^2"
+title = "조정환"
 buildFuture = true
 enableRobotsTXT = true
 
 [params]
   description = "Backend Engineer"
+  author = "조정환"
+  github = "https://github.com/junghwan16"
 
 [taxonomies]
   category = "categories"
@@ -31,7 +33,8 @@ enableRobotsTXT = true
           inline = [["$", "$"]]
 
   [markup.highlight]
-    codeFences = false
+    codeFences = true
+    noClasses = false
 
   [markup.tableOfContents]
     startLevel = 2

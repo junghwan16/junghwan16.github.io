@@ -1,33 +1,49 @@
 {{ define "main" }}
-<section class="home-intro" aria-labelledby="home-title">
-<h1 id="home-title">{{ .Site.Title }}</h1>
+{{ $posts := where site.RegularPages "Section" "posts" }}
+<section class="hero">
+<hgroup>
+<h1>{{ .Site.Title }}</h1>
 <p>{{ .Site.Params.description }}</p>
+</hgroup>
 </section>
 
-{{ $paginator := .Paginate (where site.RegularPages "Section" "posts") }}
-<div class="post-groups">
-{{ range $paginator.Pages.GroupByDate "2006.01" }}
-<section class="post-group" aria-labelledby="month-{{ .Key | urlize }}">
-<h2 id="month-{{ .Key | urlize }}">{{ .Key }}</h2>
-<ol class="post-list">
-{{ range .Pages }}
-<li class="post-list__item">
-<article>
-<h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
-<p class="post-list__summary">{{ .Summary | plainify | truncate 118 }}</p>
-<div class="post-meta">
-<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
-{{ with .Params.categories }}
-<span aria-hidden="true">/</span>
-{{ range first 2 . }}<a href="{{ (printf "/categories/%s/" (. | urlize)) | relURL }}">{{ . }}</a>{{ end }}
-{{ end }}
+<section class="home-section" aria-labelledby="recent-heading">
+<div class="section-head">
+<h2 id="recent-heading">최근 글</h2>
+<a class="section-more" href="{{ "/posts/" | relURL }}">전체 {{ len $posts }}개 →</a>
 </div>
-</article>
+<ul class="post-rows">
+{{ range first 6 $posts }}
+<li>
+<a class="post-row" href="{{ .RelPermalink }}">
+<span class="post-row__title">{{ .Title }}</span>
+<span class="post-row__summary">{{ .Summary | plainify | truncate 96 }}</span>
+<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
+</a>
 </li>
 {{ end }}
-</ol>
+</ul>
 </section>
-{{ end }}
+
+<section class="home-section" aria-labelledby="topics-heading">
+<div class="section-head">
+<h2 id="topics-heading">주제</h2>
 </div>
-{{ partial "pagination.html" $paginator }}
+<ul class="topic-chips">
+{{ range .Site.Taxonomies.categories.ByCount }}{{ if ge .Count 2 }}
+<li><a href="{{ .Page.RelPermalink }}">{{ .Page.Title }} <small>{{ .Count }}</small></a></li>
+{{ end }}{{ end }}
+<li><a href="{{ "/categories/" | relURL }}">전체 →</a></li>
+</ul>
+</section>
+
+<section class="home-section" aria-labelledby="search-heading">
+<div class="section-head">
+<h2 id="search-heading">검색</h2>
+</div>
+{{ partial "search-form.html" (dict "id" "site-search" "list" "post-titles") }}
+<datalist id="post-titles">
+{{ range $posts }}<option value="{{ .Title }}"></option>
+{{ end }}</datalist>
+</section>
 {{ end }}

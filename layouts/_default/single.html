@@ -2,30 +2,50 @@
 {{ if .Params.math }}{{ partial "katex.html" . }}{{ end }}
 {{ if .Params.mermaid }}{{ partial "mermaid.html" . }}{{ end }}
 
-<article>
+<article itemscope itemtype="https://schema.org/BlogPosting">
+<meta itemprop="inLanguage" content="ko">
+<span itemprop="author" itemscope itemtype="https://schema.org/Person"><meta itemprop="name" content="{{ .Site.Params.author }}"><link itemprop="url" href="{{ .Site.Params.github }}"></span>
 <header class="post-header">
-<h1>{{ .Title }}</h1>
+<h1 itemprop="headline">{{ .Title }}</h1>
 <div class="post-meta">
-<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
-{{ with .Params.categories }}
-<span aria-hidden="true">/</span>
-{{ range . }}<a href="{{ (printf "/categories/%s/" (. | urlize)) | relURL }}">{{ . }}</a>{{ end }}
-{{ end }}
+<time itemprop="datePublished" datetime="{{ .Date.Format "2006-01-02T15:04:05-07:00" }}">{{ .Date.Format "2006.01.02" }}</time>
+{{ range .Params.categories }}{{ with site.GetPage (printf "/categories/%s" (. | urlize)) }}
+<a href="{{ .RelPermalink }}" rel="tag"><span itemprop="articleSection">{{ .Title }}</span></a>
+{{ end }}{{ end }}
 </div>
 </header>
 {{ if and (gt .WordCount 900) (ne .Params.toc false) }}
-<nav class="toc" aria-label="Table of contents">
-<strong>목차</strong>
+<details class="toc" open>
+<summary>목차</summary>
+<nav aria-label="Table of contents">
 {{ .TableOfContents }}
 </nav>
+</details>
 {{ end }}
-<div class="post-content">
+<div class="post-content" itemprop="articleBody">
 {{ .Content }}
 </div>
 </article>
 
+{{ $related := first 5 (site.RegularPages.Related .) }}
+{{ with $related }}
+<section class="related" aria-labelledby="related-heading">
+<h2 id="related-heading">관련 글</h2>
+<ul class="post-rows">
+{{ range . }}
+<li>
+<a class="post-row post-row--compact" href="{{ .RelPermalink }}">
+<span class="post-row__title">{{ .Title }}</span>
+<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01" }}</time>
+</a>
+</li>
+{{ end }}
+</ul>
+</section>
+{{ end }}
+
 <nav class="post-nav" aria-label="Post navigation">
-{{ with .PrevInSection }}<a class="post-nav__item" href="{{ .RelPermalink }}"><span>이전 글</span>{{ .Title }}</a>{{ end }}
-{{ with .NextInSection }}<a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}"><span>다음 글</span>{{ .Title }}</a>{{ end }}
+{{ with .PrevInSection }}<a class="post-nav__item" href="{{ .RelPermalink }}" rel="prev"><span>← 이전 글</span>{{ .Title }}</a>{{ end }}
+{{ with .NextInSection }}<a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}" rel="next"><span>다음 글 →</span>{{ .Title }}</a>{{ end }}
 </nav>
 {{ end }}

@@ -1,4 +1,7 @@
 {{ define "main" }}
-<h2>404</h2>
-<p>없는 페이지입니다. <a href="{{ "/" | relURL }}">홈으로</a>.</p>
+<hgroup class="page-head">
+<h1>404</h1>
+<p>없는 페이지입니다. <a href="{{ "/" | relURL }}">홈으로</a> 가거나 검색해 보세요.</p>
+</hgroup>
+{{ partial "search-form.html" (dict "id" "site-search-404") }}
 {{ end }}

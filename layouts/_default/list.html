@@ -1,32 +1,9 @@
 {{ define "main" }}
-<header class="list-header">
+<hgroup class="page-head">
 <h1>{{ .Title }}</h1>
-<p>{{ len .Pages }}개의 글</p>
-</header>
+<p>{{ len .Pages }}개의 글{{ with .Params.description }} — {{ . }}{{ end }}</p>
+</hgroup>
 {{ $paginator := .Paginate .Pages }}
-<div class="post-groups">
-{{ range $paginator.Pages.GroupByDate "2006.01" }}
-<section class="post-group" aria-labelledby="month-{{ .Key | urlize }}">
-<h2 id="month-{{ .Key | urlize }}">{{ .Key }}</h2>
-<ol class="post-list">
-{{ range .Pages }}
-<li class="post-list__item">
-<article>
-<h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
-<p class="post-list__summary">{{ .Summary | plainify | truncate 118 }}</p>
-<div class="post-meta">
-<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
-{{ with .Params.categories }}
-<span aria-hidden="true">/</span>
-{{ range first 2 . }}<a href="{{ (printf "/categories/%s/" (. | urlize)) | relURL }}">{{ . }}</a>{{ end }}
-{{ end }}
-</div>
-</article>
-</li>
-{{ end }}
-</ol>
-</section>
-{{ end }}
-</div>
+{{ partial "post-archive.html" $paginator.Pages }}
 {{ partial "pagination.html" $paginator }}
 {{ end }}

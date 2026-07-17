@@ -5,23 +5,24 @@
 </head>
 <body>
 <header class="site-header">
-<div class="site-header__inner">
+<div class="wrap site-header__inner">
 <a class="site-title" href="{{ "/" | relURL }}">{{ .Site.Title }}</a>
 <nav class="site-nav" aria-label="Primary">
-<a href="{{ "/" | relURL }}">Posts</a>
-<a href="{{ "/categories/" | relURL }}">Categories</a>
+<a href="{{ "/posts/" | relURL }}">글</a>
+<button type="button" popovertarget="category-menu">주제</button>
 <a href="{{ "/index.xml" | relURL }}">RSS</a>
 </nav>
 </div>
 </header>
-<main class="site-main">
+{{ partialCached "category-menu.html" . }}
+<main class="wrap site-main">
 {{ block "main" . }}{{ end }}
 </main>
 <footer class="site-footer">
-<small>
-&copy; {{ now.Year }} {{ .Site.Title }} ·
-<a href="https://github.com/junghwan16">GitHub</a>
-</small>
+<div class="wrap site-footer__inner">
+<small>&copy; {{ now.Year }} {{ .Site.Title }}</small>
+<small><a href="{{ .Site.Params.github }}" rel="me author external">GitHub</a> · <a href="{{ "/index.xml" | relURL }}">RSS</a></small>
+</div>
 </footer>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {{ if gt .TotalPages 1 }}
 <nav class="pagination" aria-label="Pagination">
-{{ if .HasPrev }}<a href="{{ .Prev.URL }}">이전</a>{{ else }}<span></span>{{ end }}
+{{ if .HasPrev }}<a href="{{ .Prev.URL }}" rel="prev">이전</a>{{ else }}<span></span>{{ end }}
 <span>{{ .PageNumber }} / {{ .TotalPages }}</span>
-{{ if .HasNext }}<a href="{{ .Next.URL }}">다음</a>{{ else }}<span></span>{{ end }}
+{{ if .HasNext }}<a href="{{ .Next.URL }}" rel="next">다음</a>{{ else }}<span></span>{{ end }}
 </nav>
 {{ end }}

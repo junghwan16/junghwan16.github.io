@@ -1,0 +1,15 @@
+{{ range .GroupByDate "2006" }}
+<section class="archive-group" aria-labelledby="year-{{ .Key }}">
+<h2 class="archive-year" id="year-{{ .Key }}">{{ .Key }} <small>{{ len .Pages }}</small></h2>
+<ul class="post-rows">
+{{ range .Pages }}
+<li>
+<a class="post-row post-row--compact" href="{{ .RelPermalink }}">
+<span class="post-row__title">{{ .Title }}</span>
+<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01.02" }}</time>
+</a>
+</li>
+{{ end }}
+</ul>
+</section>
+{{ end }}
