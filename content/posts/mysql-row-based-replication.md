@@ -9,6 +9,14 @@ categories: [backend, mysql]
 
 **이번 글에서 이해할 한 문장:** Row-based replication에서 Replica는 source의 원래 UPDATE 문을 실행하지 않고, **변경 전 row를 찾아 변경 후 값으로 바꾼다.**
 
+여기서 row는 테이블의 한 행이다. 다음 표에서는 `(17, 42001, 'pending')` 한 줄 전체가 row 하나다.
+
+```text
+campaign_id | user_id | status
+------------+---------+--------
+17          | 42001   | pending
+```
+
 ## 같은 결과를 전달하는 두 방법
 
 쿠폰 발급 요청을 만료시키는 쿼리가 있다.
@@ -47,6 +55,16 @@ row update event에는 변경 전과 변경 후 정보가 있다.
 
 - **before image**: 변경할 row를 Replica에서 찾는 데 사용하는 값
 - **after image**: 찾은 row에 적용할 새로운 값
+
+사진의 “수정 전/수정 후”를 떠올리면 쉽다.
+
+```text
+before image                  after image
+
+user_id | status             user_id | status
+--------+---------           --------+--------
+42001   | pending     →      42001   | expired
+```
 
 `mysqlbinlog -vv`로 디코딩하면 다음처럼 보인다.
 
@@ -91,7 +109,7 @@ MySQL 8.4의 row search 우선순위는 다음과 같다.
 3. 그 밖의 사용 가능한 인덱스
 4. 적절한 인덱스가 없으면 table scan
 
-PK 또는 `NOT NULL` UNIQUE 키가 있으면 이벤트의 각 row를 point lookup할 수 있다.
+PK 또는 `NOT NULL` UNIQUE 키가 있으면 이벤트의 각 row를 **point lookup**할 수 있다. point lookup은 책의 모든 페이지를 넘기지 않고 학번이나 주민번호처럼 유일한 값으로 한 대상을 바로 찾는 검색이다.
 
 ```text
 before image의 PK = 93012
@@ -101,7 +119,9 @@ PK 인덱스에서 93012 검색
 한 row를 찾아 변경
 ```
 
-일반 인덱스만 있다면 이야기가 달라진다. MySQL은 row event의 before image들로 hash table을 만들고, 선택한 일반 인덱스를 따라 대상 테이블의 record를 순회하며 같은 row인지 비교한다. 일반 인덱스도 없다면 table scan을 한다.
+일반 인덱스만 있다면 이야기가 달라진다. 일반 인덱스는 같은 값을 가진 row가 여러 개일 수 있어 후보를 하나씩 확인해야 한다.
+
+MySQL 내부 구현은 row event의 before image들로 hash table을 만들고, 선택한 일반 인덱스를 따라 대상 테이블의 record를 순회하며 같은 row인지 비교한다. `hash table`이라는 자료구조를 몰라도 괜찮다. 여기서는 “찾아야 할 row 목록을 메모리에 만들어 두고, 테이블의 후보와 하나씩 대조한다”는 뜻이다. 일반 인덱스도 없다면 table scan을 한다.
 
 ```text
 row event의 before image들을 hash table에 저장
@@ -174,4 +194,3 @@ source의 SQL 실행 시간이 10ms였다는 사실은 Replica의 row search도 
 - [MySQL Reference Manual — Replication Formats](https://dev.mysql.com/doc/refman/8.4/en/replication-formats.html)
 - [MySQL Reference Manual — Usage of Row-Based Logging and Replication](https://dev.mysql.com/doc/refman/8.4/en/replication-rbr-usage.html)
 - [MySQL Reference Manual — Replication and Row Searches](https://dev.mysql.com/doc/refman/8.4/en/replication-features-row-searches.html)
-

@@ -5,17 +5,20 @@ date: 2026-07-16 18:00:00 +0900
 categories: [backend, mysql]
 ---
 
-MySQL Replica lag를 조사하다 보면 가장 먼저 `binlog`라는 단어를 만난다. 이름 때문에 일반 로그 파일처럼 보이지만 역할은 꽤 다르다.
+[앞 글](/backend/mysql/2026/07/15/mysql-replication-basics/)에서는 source와 Replica가 무엇이고, receiver와 applier가 어떤 일을 하는지 살펴봤다. 이제 복제 과정의 출발점인 `binlog`를 알아보자.
+
+이 글에 필요한 SQL 지식은 `INSERT`가 row를 추가하고 `UPDATE`가 기존 row를 바꾼다는 정도다. `row`는 테이블의 한 행을 뜻한다.
 
 **이번 글에서 이해할 한 문장:** binlog는 “누가 어떤 SELECT를 했는지”가 아니라 **데이터를 다시 같은 상태로 만들 수 있는 변경 이벤트**를 순서대로 기록한다.
 
-이 글은 다음 순서로 이어지는 시리즈의 첫 번째 글이다.
+전체 시리즈는 다음 순서로 이어진다.
 
-1. **binlog는 무엇인가**
-2. [Row-based replication은 SQL 대신 무엇을 전달하는가](/backend/mysql/2026/07/17/mysql-row-based-replication/)
-3. [InnoDB에서 PK는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)
-4. [UPDATE 6건이 왜 1,600개의 lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)
-5. [CPU는 한가로운데 Replica lag가 늘어난 장애 분석](/backend/mysql/2026/07/20/mysql-replica-update-primary-key/)
+1. [MySQL 복제와 Replica lag](/backend/mysql/2026/07/15/mysql-replication-basics/)
+2. **binlog는 무엇인가**
+3. [Row-based replication은 SQL 대신 무엇을 전달하는가](/backend/mysql/2026/07/17/mysql-row-based-replication/)
+4. [InnoDB에서 PK는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)
+5. [UPDATE 6건이 왜 1,600개의 lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)
+6. [CPU는 한가로운데 Replica lag가 늘어난 장애 분석](/backend/mysql/2026/07/20/mysql-replica-update-primary-key/)
 
 ## binlog는 변경 일지다
 
@@ -31,7 +34,7 @@ INSERT INTO coupon_issue_history (
 ) VALUES (17, 42001, 'coupon-001', 'pending', NOW());
 ```
 
-이 작업으로 테이블의 상태가 달라졌다. MySQL은 이런 변경을 binary log, 줄여서 binlog에 이벤트로 남긴다.
+이 작업으로 테이블에 row 하나가 생겼다. 즉 데이터베이스의 상태가 달라졌다. MySQL은 이런 변경을 binary log, 줄여서 binlog에 **event**로 남긴다. event는 여기서 “재생할 수 있도록 기록한 변경 한 조각”이라고 이해하면 된다.
 
 binlog의 대표 목적은 두 가지다.
 
@@ -95,7 +98,7 @@ SHOW GLOBAL VARIABLES LIKE 'binlog_format';
 
 ## source와 Replica 사이에서 이동하는 과정
 
-복제를 아주 단순하게 그리면 다음과 같다.
+앞 글에서 본 복제 과정에 binlog를 넣어 다시 그리면 다음과 같다.
 
 ```text
 애플리케이션이 source의 데이터를 변경

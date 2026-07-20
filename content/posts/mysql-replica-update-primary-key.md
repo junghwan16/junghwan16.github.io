@@ -5,13 +5,28 @@ date: 2026-07-20 18:00:00 +0900
 categories: [backend, mysql]
 ---
 
-이 글은 MySQL Replica lag를 이해하는 시리즈의 마지막 실전편이다. 하나의 장애 안에 binlog, Row-based replication, clustered index와 InnoDB lock이 모두 등장한다. 개념이 낯설다면 앞 글부터 순서대로 읽는 편이 쉽다.
+이 글은 MySQL Replica lag를 이해하는 시리즈의 마지막 실전편이다. 하나의 장애 안에 replication, binlog, Row-based replication, clustered index와 InnoDB lock이 모두 등장한다. 개념이 낯설다면 앞 글부터 순서대로 읽는 편이 쉽다.
 
-1. [MySQL binlog는 무엇을 기록하는가](/backend/mysql/2026/07/16/mysql-binlog-basics/)
-2. [Row-based replication은 SQL 대신 무엇을 전달하는가](/backend/mysql/2026/07/17/mysql-row-based-replication/)
-3. [InnoDB에서 Primary Key는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)
-4. [UPDATE 6건이 왜 1,600개의 InnoDB lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)
-5. **CPU는 한가로운데 Replica lag가 늘어난 장애 분석**
+1. [MySQL 복제는 무엇이고 Replica lag는 왜 생길까](/backend/mysql/2026/07/15/mysql-replication-basics/)
+2. [MySQL binlog는 무엇을 기록하는가](/backend/mysql/2026/07/16/mysql-binlog-basics/)
+3. [Row-based replication은 SQL 대신 무엇을 전달하는가](/backend/mysql/2026/07/17/mysql-row-based-replication/)
+4. [InnoDB에서 Primary Key는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)
+5. [UPDATE 6건이 왜 1,600개의 InnoDB lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)
+6. **CPU는 한가로운데 Replica lag가 늘어난 장애 분석**
+
+## 먼저 보는 사건 지도
+
+처음부터 모든 SQL을 이해하려 하지 않아도 된다. 이 글은 아래 다섯 질문에 증거를 하나씩 붙이는 과정이다.
+
+| 순서 | 질문 | 확인할 증거 |
+|---|---|---|
+| 1 | 변경을 가져오지 못했나, 적용하지 못했나 | `SHOW REPLICA STATUS` |
+| 2 | 어떤 변경에서 멈췄나 | error log와 binlog |
+| 3 | Replica는 대상 row를 어떻게 찾았나 | 테이블의 PK와 인덱스 |
+| 4 | 실제로 lock이 많이 잡혔나 | `innodb_trx`, `data_locks` |
+| 5 | 누가 누구를 막았나 | `data_lock_waits`, applier worker 정보 |
+
+각 단계에서 먼저 **관측한 사실**을 적고, 그 사실들로부터 **내린 결론**을 분리한다. 운영 장애 분석에서 그럴듯한 설명보다 중요한 것은 재현 가능한 증거다.
 
 새벽 1시 42분, 대규모 쿠폰 발급 시스템의 당직 엔지니어에게 경보가 왔다.
 

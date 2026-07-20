@@ -9,11 +9,34 @@ categories: [backend, mysql]
 
 **이번 글에서 이해할 한 문장:** InnoDB의 table row는 clustered index에 저장되며, 보통 Primary Key가 그 clustered index다.
 
+## Primary Key부터 다시 보기
+
+Primary Key, 줄여서 PK는 테이블에서 각 row를 하나로 식별하는 컬럼 또는 컬럼 조합이다.
+
+```sql
+CREATE TABLE users (
+    id BIGINT NOT NULL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+```
+
+`id=1`인 사용자는 한 명만 존재하며 `id`는 `NULL`일 수 없다. 그래서 다음 질문에 답할 수 있다.
+
+> users 테이블의 여러 row 중 정확히 어느 row인가?
+
+```sql
+SELECT * FROM users WHERE id = 1;
+```
+
+UNIQUE 인덱스도 중복을 막지만 nullable 컬럼에는 여러 `NULL`이 들어갈 수 있다. 그래서 복제의 row 식별 키로 쓰려면 모든 구성 컬럼이 `NOT NULL`이어야 한다.
+
 ## row와 PK가 따로 있지 않다
 
 보통 인덱스를 책 뒤의 찾아보기처럼 설명한다. 인덱스에서 위치를 찾고, 별도로 저장된 본문으로 이동한다는 비유다.
 
-InnoDB의 Primary Key는 조금 다르다. Primary Key B-Tree의 leaf page에 row 데이터가 함께 저장된다. 이를 **clustered index**라고 한다.
+InnoDB의 Primary Key는 조금 다르다. Primary Key 인덱스의 맨 아래 단계에 row 데이터가 함께 저장된다. 이를 **clustered index**라고 한다.
+
+`B-Tree`와 `leaf page`를 아직 배우지 않았다면 “정렬된 인덱스 구조의 마지막 칸에 실제 row가 함께 있다”고 이해하면 충분하다.
 
 ```text
 Primary Key B-Tree
@@ -178,4 +201,3 @@ ORDER BY t.table_rows DESC;
 - [MySQL Reference Manual — Clustered and Secondary Indexes](https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html)
 - [MySQL Reference Manual — Partitioning Keys, Primary Keys, and Unique Keys](https://dev.mysql.com/doc/refman/8.4/en/partitioning-limitations-partitioning-keys-unique-keys.html)
 - [MySQL Reference Manual — Replication and Row Searches](https://dev.mysql.com/doc/refman/8.4/en/replication-features-row-searches.html)
-

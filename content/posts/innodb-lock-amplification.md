@@ -9,6 +9,35 @@ categories: [backend, mysql]
 
 **이번 글에서 이해할 한 문장:** InnoDB의 UPDATE lock 수는 최종 수정 row 수보다 **대상을 찾기 위해 scan한 index record 수**에 더 가까울 수 있다.
 
+## lock은 왜 필요한가
+
+두 요청이 동시에 같은 쿠폰 상태를 바꾼다고 하자.
+
+```text
+요청 A: pending → issued
+요청 B: pending → expired
+```
+
+둘이 아무 제약 없이 동시에 값을 바꾸면 마지막에 어떤 상태가 남을지 예측하기 어렵다. InnoDB는 한 트랜잭션이 row를 수정하는 동안 다른 트랜잭션이 충돌하는 수정을 하지 못하도록 lock을 사용한다.
+
+```text
+트랜잭션 A가 row에 X lock 획득
+  ↓
+트랜잭션 B가 같은 row의 X lock 요청
+  ↓
+B는 A가 COMMIT 또는 ROLLBACK할 때까지 대기
+```
+
+- **트랜잭션**은 함께 성공하거나 함께 취소되어야 하는 작업 단위다.
+- **X lock**은 exclusive lock의 줄임말로, 해당 row를 수정하거나 삭제할 권한을 한 트랜잭션이 독점한다.
+- **COMMIT**은 변경을 확정하고, **ROLLBACK**은 변경을 취소한다.
+
+이 글에서는 여러 lock 종류를 모두 외우지 않는다. UPDATE 중 index record에 잡히는 X lock에만 집중한다.
+
+## row lock이라고 row만 잠그는 것은 아니다
+
+InnoDB의 record lock은 추상적인 “row 번호”가 아니라 **index record**를 잠근다. PK를 사용했다면 PK index record가, secondary index를 사용했다면 그 secondary index record가 탐색 과정에 등장한다.
+
 ## 수정한 row와 찾으려고 본 row는 다르다
 
 다음 UPDATE가 최종적으로 쿠폰 발급 요청 6건만 만료시켰다고 하자.
@@ -234,4 +263,3 @@ JOIN performance_schema.data_locks AS blocking
 - [MySQL Reference Manual — Locks Set by Different SQL Statements in InnoDB](https://dev.mysql.com/doc/refman/8.4/en/innodb-locks-set.html)
 - [MySQL Reference Manual — InnoDB Locking](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking.html)
 - [MySQL Reference Manual — Replication and Row Searches](https://dev.mysql.com/doc/refman/8.4/en/replication-features-row-searches.html)
-
