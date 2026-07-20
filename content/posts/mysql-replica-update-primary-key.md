@@ -1,9 +1,17 @@
 ---
-title: "CPU는 한가로운데 Replica lag가 늘었다: UPDATE 테이블에 PK가 필요한 이유"
+title: "실전: CPU는 한가로운데 Replica lag가 늘어난 이유"
 url: "/backend/mysql/2026/07/20/mysql-replica-update-primary-key/"
 date: 2026-07-20 18:00:00 +0900
 categories: [backend, mysql]
 ---
+
+이 글은 MySQL Replica lag를 이해하는 시리즈의 마지막 실전편이다. 하나의 장애 안에 binlog, Row-based replication, clustered index와 InnoDB lock이 모두 등장한다. 개념이 낯설다면 앞 글부터 순서대로 읽는 편이 쉽다.
+
+1. [MySQL binlog는 무엇을 기록하는가](/backend/mysql/2026/07/16/mysql-binlog-basics/)
+2. [Row-based replication은 SQL 대신 무엇을 전달하는가](/backend/mysql/2026/07/17/mysql-row-based-replication/)
+3. [InnoDB에서 Primary Key는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)
+4. [UPDATE 6건이 왜 1,600개의 InnoDB lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)
+5. **CPU는 한가로운데 Replica lag가 늘어난 장애 분석**
 
 새벽 1시 42분, 대규모 쿠폰 발급 시스템의 당직 엔지니어에게 경보가 왔다.
 
@@ -113,6 +121,8 @@ Replica를 다시 시작하자 잠깐 움직였지만 얼마 뒤 같은 GTID 근
 
 ## 02:00 — binlog에는 원래 UPDATE 문이 없었다
 
+앞 글의 [binlog와 Row-based replication](/backend/mysql/2026/07/17/mysql-row-based-replication/) 개념을 실제 장애 로그에 적용해 보자.
+
 에러 로그의 GTID와 binlog position을 이용해 문제 구간을 디코딩했다.
 
 ```bash
@@ -161,6 +171,8 @@ WHERE variable_name IN ('binlog_format', 'binlog_row_image');
 ```
 
 ## 02:08 — PK가 없으면 row를 어떻게 찾을까
+
+이 절의 전제인 clustered index 구조는 [InnoDB에서 Primary Key는 왜 row의 주소가 되는가](/backend/mysql/2026/07/18/innodb-primary-key-clustered-index/)에서 분리해 설명했다.
 
 MySQL은 row-based replication의 UPDATE 또는 DELETE를 적용할 때 다음 순서로 인덱스를 고른다.
 
@@ -243,6 +255,8 @@ FROM performance_schema.replication_applier_status;
 worker들은 외부 세션 하나를 기다리는 것이 아니라 서로 다른 applier 트랜잭션을 재시도하는 모습이었다. 이제 실제 InnoDB lock을 확인할 차례였다.
 
 ## 02:24 — 6개 row를 바꾸는데 1,600개가 잠겨 있었다
+
+수정 row와 lock 수가 달라지는 원리는 [UPDATE 6건이 왜 1,600개의 InnoDB lock을 만들까](/backend/mysql/2026/07/19/innodb-lock-amplification/)에서 먼저 확인할 수 있다.
 
 진행 중인 InnoDB 트랜잭션을 조회했다.
 
