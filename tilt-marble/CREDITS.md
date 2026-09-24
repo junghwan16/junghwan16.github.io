@@ -11,3 +11,8 @@
 | fonts/Fredoka.ttf | [Google Fonts – Fredoka](https://fonts.google.com/specimen/Fredoka) | The Fredoka Project Authors | SIL OFL 1.1 (`fonts/Fredoka-OFL.txt`) |
 | models/marble.glb (+ Textures/colormap.png) | [Kenney – Marble Kit](https://kenney.nl/assets/marble-kit) (marble-center-butterfly-high) | Kenney | CC0 |
 | models/platformer/jewel.glb (+ Textures/colormap.png) | [Kenney – Platformer Kit](https://kenney.nl/assets/platformer-kit) | Kenney | CC0 |
+| audio/music.mp3 (Happy Lullaby, song17) | [OpenGameArt – Happy Lullaby](https://opengameart.org/content/happy-lullaby-song17) | cynicmusic | CC0 |
+| fonts/Jua-subset.ttf (게임에 쓰인 한글만 남긴 부분 집합) | [Google Fonts – Jua](https://fonts.google.com/specimen/Jua) | The Jua Project Authors | SIL OFL 1.1 (`fonts/Jua-OFL.txt`) |
+
+> 한글 폰트는 용량을 줄이려고 `localization/strings.csv`에 쓰인 글자만 남겼다.
+> 새 한글 문장을 추가하면 Jua-Regular.ttf에서 다시 subset 해야 글자가 보인다 (fonttools `pyftsubset`).

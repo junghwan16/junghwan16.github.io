@@ -2,13 +2,14 @@
   {
     "slug": "tilt-marble",
     "title": "Tilt Marble",
-    "description": "보드를 기울여 구슬을 굴리고 보석을 모으세요. 연속으로 먹으면 콤보, 떨어지면 감점!",
+    "description": "보드를 기울여 구슬을 굴리고 보석을 모으세요. 연속으로 먹으면 콤보, 금색 보석은 3배, 떨어지면 감점!",
     "tags": [
       "3D",
       "Physics",
       "Arcade",
       "Combo",
-      "Mobile OK"
+      "Mobile OK",
+      "한국어"
     ],
     "controls": "WASD / 방향키 · 드래그 · 폰 기울이기",
     "engine": "Godot 4.7",
