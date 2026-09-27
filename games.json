@@ -1,5 +1,21 @@
 [
   {
+    "slug": "voxel-reveal",
+    "title": "Voxel Reveal",
+    "description": "숫자 단서를 읽고 블록을 깎아 숨은 조각상을 찾는 3D 로직 퍼즐. 15개의 조각상을 모아 컬렉션을 완성하세요!",
+    "tags": [
+      "3D",
+      "Puzzle",
+      "Picross",
+      "Collection",
+      "Mobile OK",
+      "세로 화면"
+    ],
+    "controls": "탭 = 깎기 · 드래그 = 회전 · 길게 누르기/KEEP = 보호 · PEEK 슬라이더",
+    "engine": "Unity 6",
+    "added": "2026-09-27"
+  },
+  {
     "slug": "tilt-marble",
     "title": "Tilt Marble",
     "description": "보드를 기울여 구슬을 굴리고 보석을 모으세요. 연속으로 먹으면 콤보, 금색 보석은 3배, 떨어지면 감점!",

@@ -1,6 +1,6 @@
 # Mini Games
 
-Godot로 만든 작은 웹 게임 카탈로그. `index.html`이 `games.json`을 읽어 카드 목록을 그린다.
+Godot / Unity로 만든 작은 웹 게임 카탈로그. `index.html`이 `games.json`을 읽어 카드 목록을 그린다.
 
 ## 구조
 ```
@@ -15,3 +15,9 @@ scripts/publish-godot.sh   Godot 프로젝트 → <slug>/ 로 내보내기
 2. `scripts/publish-godot.sh <프로젝트 경로> <slug>`
 3. `<slug>/cover.jpg` (16:9) 추가, `games.json`에 항목 추가
 4. commit & push → GitHub Pages가 자동 배포
+
+## Unity 게임 추가 (예: voxel-reveal)
+1. 프로젝트에서 WebGL 빌드 (압축 끔 — GitHub Pages는 사전 압축 파일을 제대로 서빙하지 못함)
+   `Unity -batchmode -quit -projectPath <프로젝트> -buildTarget WebGL -executeMethod VoxelReveal.Editor.BuildScript.BuildWebGL -buildPath <출력>`
+2. 출력(index.html, Build/)을 `<slug>/`에 복사, `cover.jpg`·`CREDITS.md` 추가, `games.json`에 항목 추가
+

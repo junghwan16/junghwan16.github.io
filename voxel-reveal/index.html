@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#b5dcff">
+  <title>VoxelReveal</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: linear-gradient(#b5dcff, #fff1e2); font-family: system-ui, sans-serif; }
+    body { display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-user-select: none; user-select: none; }
+    /* Portrait 9:16 stage that fits the window; fills the screen on phones. */
+    #stage { position: relative; height: min(100vh, calc(100vw * 16 / 9)); height: min(100dvh, calc(100vw * 16 / 9)); aspect-ratio: 9 / 16; box-shadow: 0 10px 40px rgba(42,36,72,.25); border-radius: 18px; overflow: hidden; background: #b5dcff; }
+    @media (max-aspect-ratio: 10/16) { #stage { border-radius: 0; box-shadow: none; width: 100vw; height: 100vh; height: 100dvh; aspect-ratio: auto; } }
+    #unity-canvas { width: 100%; height: 100%; display: block; outline: none; }
+    #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #3a3550; }
+    #loading .title { font-weight: 800; font-size: 28px; letter-spacing: 3px; }
+    #bar { width: 60%; height: 14px; border-radius: 7px; background: rgba(255,255,255,.7); overflow: hidden; }
+    #fill { width: 0; height: 100%; background: #ff6f61; border-radius: 7px; transition: width .2s; }
+    #error { display: none; padding: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading"><div class="title">VOXEL REVEAL</div><div id="bar"><div id="fill"></div></div><div id="error"></div></div>
+  </div>
+  <script src="Build/webgl.loader.js"></script>
+  <script>
+    const config = {
+      dataUrl: "Build/webgl.data",
+      frameworkUrl: "Build/webgl.framework.js",
+      codeUrl: "Build/webgl.wasm",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "VoxelReveal",
+      productVersion: "0.1.0",
+      matchWebGLToCanvasSize: true,
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+    };
+    createUnityInstance(document.querySelector("#unity-canvas"), config, (p) => {
+      document.querySelector("#fill").style.width = Math.round(p * 100) + "%";
+    }).then(() => {
+      document.querySelector("#loading").style.display = "none";
+    }).catch((message) => {
+      const error = document.querySelector("#error");
+      error.style.display = "block";
+      error.textContent = "게임을 불러오지 못했어요: " + message;
+    });
+  </script>
+</body>
+</html>
